@@ -1,0 +1,10 @@
+{
+  "name": "HOE Property Management",
+  "description": "A premium UK-based property platform featuring modern management tools for tenants and landlords.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
