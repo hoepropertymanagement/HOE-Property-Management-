@@ -4,6 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [logoError, setLogoError] = React.useState(false);
 
   return (
     <footer className="bg-primary text-secondary pt-24 pb-12 px-8 overflow-hidden relative">
@@ -65,24 +66,49 @@ export default function Footer() {
 
           {/* PRS Compliance Section */}
           <div className="flex flex-col items-center md:items-end gap-3">
-            <a 
-              href="https://www.propertyredress.co.uk" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group transition-all duration-500 hover:scale-[1.02]"
-            >
-              <div className="bg-white p-3 rounded-2xl shadow-2xl border border-secondary/10 flex flex-col items-center gap-2 max-w-[160px]">
-                <img 
-                  src="https://www.propertyredress.co.uk/media/1001/prs-logo-final.png" 
-                  alt="Property Redress Scheme Member" 
-                  className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="text-[8px] font-black uppercase tracking-[0.2em] text-[#0c0214] border-t border-primary/5 pt-2 w-full text-center">
-                  Member No: PRS058192
-                </div>
+            <div className="flex flex-col items-center gap-2">
+              <a 
+                href="https://www.theprs.co.uk/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ display: 'inline-block', textDecoration: 'none' }}
+              >
+                {!logoError ? (
+                  <img 
+                    src="property-redress-logo.jpeg" 
+                    alt="Property Redress Scheme Member" 
+                    style={{ height: '64px', width: 'auto', cursor: 'pointer', opacity: 0.9, transition: 'opacity 0.3s ease' }}
+                    onError={() => setLogoError(true)}
+                    referrerPolicy="no-referrer"
+                    className="hover:opacity-100 transition-opacity"
+                  />
+                ) : (
+                  <svg 
+                    viewBox="0 0 320 100" 
+                    style={{ height: '64px', width: 'auto', cursor: 'pointer', opacity: 0.9 }} 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="hover:opacity-100 transition-opacity"
+                  >
+                    <g>
+                      {/* Left: Slate grey angle, parallel to the purple pillars */}
+                      <path d="M 8 85 L 48 15 L 56 15 L 16 85 Z" fill="#71717a" />
+                      {/* Purple pillar 1 */}
+                      <rect x="22" y="38" width="13" height="47" rx="1.5" fill="#a855f7" />
+                      {/* Magenta/fuchsia pillar 2 */}
+                      <rect x="42" y="15" width="13" height="70" rx="1.5" fill="#d946ef" />
+                    </g>
+                    {/* Brand Texts matching the uploaded logo */}
+                    <text x="68" y="36" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="24" fontWeight="300" letterSpacing="0.02em">Property</text>
+                    <text x="68" y="67" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="28" fontWeight="800" letterSpacing="0.01em">Redress</text>
+                    <text x="68" y="88" fill="#d4af37" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="600" letterSpacing="0.18em">SCHEME</text>
+                  </svg>
+                )}
+              </a>
+              <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#d4af37] bg-white/[0.03] px-2 py-1 rounded border border-white/5 text-center select-none">
+                Member No: PRS058192
               </div>
-            </a>
+            </div>
             <p className="text-[9px] text-secondary/30 uppercase tracking-[0.3em] font-bold">
               Independent Redress Provided
             </p>
