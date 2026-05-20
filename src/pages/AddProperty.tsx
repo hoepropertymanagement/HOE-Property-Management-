@@ -28,6 +28,10 @@ export default function AddProperty() {
   const [formData, setFormData] = useState({
     title: '',
     type: 'Apartment',
+    location: '',
+    bedrooms: '1',
+    bathrooms: '1',
+    encodedUniqueNumber: '',
     isStudent: false,
     isShared: false,
     isBillsIncluded: false,
@@ -61,6 +65,7 @@ export default function AddProperty() {
   const [cachedDraftData, setCachedDraftData] = useState<any>(null);
 
   const getFirstMissedStep = (data: typeof formData) => {
+    if (!data.title || !data.location) return 1;
     if (!data.description || data.description.length < 50) return 2;
     if (!data.epcCertificate) return 3;
     if (!data.monthlyRent) return 4;
@@ -82,6 +87,10 @@ export default function AddProperty() {
           const loadedData = {
             title: data.title || '',
             type: data.type || 'Apartment',
+            location: data.location || '',
+            bedrooms: data.bedrooms ? String(data.bedrooms) : '1',
+            bathrooms: data.bathrooms ? String(data.bathrooms) : '1',
+            encodedUniqueNumber: data.encodedUniqueNumber || data.referenceNumber || '',
             isStudent: !!data.isStudent,
             isShared: !!data.isShared,
             isBillsIncluded: !!data.isBillsIncluded,
@@ -223,10 +232,18 @@ export default function AddProperty() {
     try {
       const { collection, addDoc, doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
       const { db } = await import('../lib/firebase');
+
+      const finalUniqueRef = formData.encodedUniqueNumber || ('HOE-' + Math.floor(100000 + Math.random() * 900000));
+      const formattedPriceStr = formData.monthlyRent ? `£${Number(formData.monthlyRent).toLocaleString()} pcm` : 'POA';
       
       const propertyData = {
         title: formData.title || 'HOE Premium Listing',
         type: formData.type,
+        location: formData.location || 'Hatfield',
+        bedrooms: parseInt(formData.bedrooms) || 1,
+        bathrooms: parseInt(formData.bathrooms) || 1,
+        encodedUniqueNumber: finalUniqueRef,
+        referenceNumber: finalUniqueRef,
         isStudent: formData.isStudent,
         isShared: formData.isShared,
         isBillsIncluded: formData.isBillsIncluded,
@@ -241,16 +258,18 @@ export default function AddProperty() {
         epcEI: formData.epcEI,
         epcCertificate: formData.epcCertificate,
         monthlyRent: formData.monthlyRent,
-        price: parseFloat(formData.monthlyRent),
+        price: formattedPriceStr,
+        rentNumeric: parseFloat(formData.monthlyRent) || 0,
         securityDeposit: formData.securityDeposit,
         holdingDeposit: formData.holdingDeposit,
         images: formData.images,
+        image: formData.images[0] || '',
         noImage: formData.noImage,
         landlordId: user.uid,
         landlordName: profile?.name || user.displayName || 'Landlord',
         updatedAt: serverTimestamp(),
         // Normalize search fields for fuzzy matching if needed later
-        locationSearch: (formData.title || '').toLowerCase(),
+        locationSearch: `${formData.location || ''} ${formData.title || ''}`.toLowerCase(),
         // Ensure status is Live
         status: 'Live'
       };
@@ -290,10 +309,18 @@ export default function AddProperty() {
     try {
       const { collection, addDoc, doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
       const { db } = await import('../lib/firebase');
+
+      const finalUniqueRef = formData.encodedUniqueNumber || ('HOE-' + Math.floor(100000 + Math.random() * 900000));
+      const formattedPriceStr = formData.monthlyRent ? `£${Number(formData.monthlyRent).toLocaleString()} pcm` : 'POA';
       
       const propertyData = {
         title: formData.title || 'Untitled Property Draft',
         type: formData.type,
+        location: formData.location || '',
+        bedrooms: parseInt(formData.bedrooms) || 1,
+        bathrooms: parseInt(formData.bathrooms) || 1,
+        encodedUniqueNumber: finalUniqueRef,
+        referenceNumber: finalUniqueRef,
         isStudent: formData.isStudent,
         isShared: formData.isShared,
         isBillsIncluded: formData.isBillsIncluded,
@@ -308,15 +335,17 @@ export default function AddProperty() {
         epcEI: formData.epcEI,
         epcCertificate: formData.epcCertificate,
         monthlyRent: formData.monthlyRent,
-        price: formData.monthlyRent ? parseFloat(formData.monthlyRent) : 0,
+        price: formattedPriceStr,
+        rentNumeric: formData.monthlyRent ? parseFloat(formData.monthlyRent) : 0,
         securityDeposit: formData.securityDeposit,
         holdingDeposit: formData.holdingDeposit,
         images: formData.images,
+        image: formData.images[0] || '',
         noImage: formData.noImage,
         landlordId: user.uid,
         landlordName: profile?.name || user.displayName || 'Landlord',
         updatedAt: serverTimestamp(),
-        locationSearch: (formData.title || '').toLowerCase(),
+        locationSearch: `${formData.location || ''} ${formData.title || ''}`.toLowerCase(),
         status: 'Draft'
       };
 
@@ -363,7 +392,80 @@ export default function AddProperty() {
           >
             <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">Property Foundation & Toggles</h3>
-              
+
+              {/* Core Information Section - Title & Location */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Property Title *</label>
+                  <input 
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => updateFormData({ title: e.target.value })}
+                    placeholder="e.g. Stunning 2 Bed Apartment in Hatfield"
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Primary Location (UK Town/District) *</label>
+                  <input 
+                    type="text"
+                    required
+                    value={formData.location}
+                    onChange={(e) => updateFormData({ location: e.target.value })}
+                    placeholder="e.g. Hatfield or South Hatfield"
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Specs Grid - Property Type, Bedrooms, Bathrooms */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Property Type *</label>
+                  <select 
+                    value={formData.type}
+                    onChange={(e) => updateFormData({ type: e.target.value })}
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  >
+                    <option value="Apartment">Apartment</option>
+                    <option value="House">House</option>
+                    <option value="Flat">Flat</option>
+                    <option value="Detached">Detached</option>
+                    <option value="Terrace">Terrace</option>
+                    <option value="Studio">Studio</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Bedrooms *</label>
+                  <select 
+                    value={formData.bedrooms}
+                    onChange={(e) => updateFormData({ bedrooms: e.target.value })}
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  >
+                    <option value="0">Studio (0 Beds)</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                      <option key={n} value={n}>{n} {n === 1 ? 'Bedroom' : 'Bedrooms'}</option>
+                    ))}
+                    <option value="13">12+ Bedrooms</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Bathrooms *</label>
+                  <select 
+                    value={formData.bathrooms}
+                    onChange={(e) => updateFormData({ bathrooms: e.target.value })}
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  >
+                    <option value="0">En-suite</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                      <option key={n} value={n}>{n} {n === 1 ? 'Bathroom' : 'Bathrooms'}</option>
+                    ))}
+                    <option value="9">8+ Bathrooms</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
                   { id: 'isShared', label: 'Shared Accommodation', desc: 'Listing for individual rooms' },
@@ -803,6 +905,7 @@ export default function AddProperty() {
   };
 
   const isNextDisabled = () => {
+    if (step === 1 && (!formData.title.trim() || !formData.location.trim())) return true;
     if (step === 2 && formData.description.length < 50) return true;
     if (step === 3 && !formData.epcCertificate) return true;
     if (step === 4 && !formData.monthlyRent) return true;

@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import type { Property } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
+import { useAuth } from '../context/AuthContext';
 
 interface PropertyCardProps {
   property: Property;
@@ -14,11 +15,23 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const { isSaved, toggleSave } = useSavedProperties();
+  const { profile } = useAuth();
+  const isLandlord = profile?.role === 'landlord' || profile?.role === 'both';
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const totalImages = property.images?.length || 0;
+  
+  // Cache buster guarantees the browser displays freshly replaced images instantly
+  const cacheBuster = React.useMemo(() => Date.now(), []);
+  const prepUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${cacheBuster}`;
+  };
+
   // We want to show up to 3 real images, then a 4th "more" slide if there are 4+ images
-  const displayImages = property.images ? property.images.slice(0, 4) : [];
+  const displayImages = property.images ? property.images.slice(0, 4).map(img => prepUrl(img)) : [];
   const hasMoreImages = totalImages > 3;
 
   const nextImage = (e?: React.MouseEvent) => {
@@ -151,16 +164,16 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
 
         {/* Navigation Arrows */}
         {displayImages.length > 1 && (
-          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 pointer-events-none z-30">
             <button 
               onClick={prevImage}
-              className="p-2 bg-white/40 backdrop-blur-lg rounded-full text-primary hover:bg-white transition-all shadow-xl hover:scale-110 pointer-events-auto"
+              className="absolute left-3 top-1/2 -translate-y-1/2 bg-[#0c0214]/75 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_10px_rgba(212,175,55,0.4)] w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 pointer-events-auto"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button 
               onClick={nextImage}
-              className="p-2 bg-white/40 backdrop-blur-lg rounded-full text-primary hover:bg-white transition-all shadow-xl hover:scale-110 pointer-events-auto"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#0c0214]/75 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_10px_rgba(212,175,55,0.4)] w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 pointer-events-auto"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -207,14 +220,16 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
         <div className="mb-2">
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-accent font-bold text-xl">{property.price}</h3>
-            <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-primary bg-primary/5 px-2 py-1 rounded-md">
-              <span className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                property.status === 'Live' ? "bg-[#4CAF50] animate-pulse" : 
-                property.status === 'Let Agreed' ? "bg-accent" : "bg-muted"
-              )}></span> 
-              {property.status}
-            </div>
+            {(!property.status || property.status === 'Live' ? isLandlord : true) && (
+              <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-primary bg-primary/5 px-2 py-1 rounded-md">
+                <span className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  (!property.status || property.status === 'Live') ? "bg-[#4CAF50] animate-pulse" : 
+                  property.status === 'Let Agreed' ? "bg-accent" : "bg-muted"
+                )}></span> 
+                {property.status || 'Live'}
+              </div>
+            )}
           </div>
           <p className="text-base font-serif text-black font-bold mb-1 line-clamp-1">{property.title}</p>
           <p className="text-[10px] text-muted uppercase tracking-widest font-bold flex items-center gap-2">

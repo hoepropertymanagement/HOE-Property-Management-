@@ -9,7 +9,7 @@ import {
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -23,6 +23,15 @@ export default function PropertyDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isMessaging, setIsMessaging] = useState(false);
+
+  // Cache buster guarantees the browser displays freshly replaced images instantly
+  const cacheBuster = useMemo(() => Date.now(), []);
+  const prepUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${cacheBuster}`;
+  };
 
   useEffect(() => {
     async function fetchProperty() {
@@ -145,7 +154,7 @@ export default function PropertyDetail() {
             className="md:col-span-3 aspect-[16/9] rounded-[2rem] overflow-hidden group shadow-2xl shadow-primary/10 relative"
           >
             {property.image ? (
-              <img src={property.image} alt={property.title} className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" />
+              <img src={prepUrl(property.image)} alt={property.title} className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-secondary">
                  <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
@@ -189,13 +198,23 @@ export default function PropertyDetail() {
           </motion.div>
           <div className="hidden md:flex flex-col gap-4">
             <div className="flex-grow rounded-[1.5rem] overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover" alt="Detail 1" />
+              <img 
+                src={property.images && property.images[1] ? prepUrl(property.images[1]) : (property.image ? prepUrl(property.image) : "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=600")} 
+                className="w-full h-full object-cover" 
+                alt="Detail 1" 
+              />
             </div>
             <div className="flex-grow rounded-[1.5rem] overflow-hidden relative group cursor-pointer">
-              <img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover" alt="Detail 2" />
-              <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                <span className="text-secondary font-medium">+12 Photos</span>
-              </div>
+              <img 
+                src={property.images && property.images[2] ? prepUrl(property.images[2]) : (property.image ? prepUrl(property.image) : "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&q=80&w=600")} 
+                className="w-full h-full object-cover" 
+                alt="Detail 2" 
+              />
+              {property.images && property.images.length > 3 && (
+                <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                  <span className="text-secondary font-medium">+{property.images.length - 3} Photos</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -358,13 +377,13 @@ export default function PropertyDetail() {
                 <h3 className="text-2xl font-serif italic mb-6">Floor Plan</h3>
                 {property.floorplan ? (
                   <div className="bg-white rounded-[2rem] border border-primary/5 shadow-xl overflow-hidden group">
-                    <img src={property.floorplan} className="w-full h-auto" alt="Floor Plan" />
+                    <img src={prepUrl(property.floorplan)} className="w-full h-auto" alt="Floor Plan" />
                     <div className="p-6 bg-primary/5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Ruler className="w-5 h-5 text-accent" />
                         <span className="text-sm font-bold text-primary">Technical Floor Plan</span>
                       </div>
-                      <a href={property.floorplan} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
+                      <a href={prepUrl(property.floorplan)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
                         <Download className="w-4 h-4" /> View Full Scale
                       </a>
                     </div>
@@ -385,13 +404,13 @@ export default function PropertyDetail() {
                 <h3 className="text-2xl font-serif italic mb-6">Energy Performance Certificate (EPC)</h3>
                 {property.epcCertificate ? (
                   <div className="bg-white rounded-[2rem] border border-primary/5 shadow-xl overflow-hidden group">
-                    <img src={property.epcCertificate} className="w-full h-auto" alt="EPC Certificate" />
+                    <img src={prepUrl(property.epcCertificate)} className="w-full h-auto" alt="EPC Certificate" />
                     <div className="p-6 bg-primary/5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-accent" />
                         <span className="text-sm font-bold text-primary">Official EPC Document</span>
                       </div>
-                      <a href={property.epcCertificate} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
+                      <a href={prepUrl(property.epcCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
                         <Download className="w-4 h-4" /> Download Certificate
                       </a>
                     </div>
