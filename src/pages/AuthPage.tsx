@@ -49,6 +49,17 @@ export default function AuthPage() {
     }
   }, [user, navigate, showSuccess, authStep]);
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    
+    if (status === 'verified' || hash.includes('type=signup') || hash.includes('access_token')) {
+      showNotification("Email verified successfully! Welcome to HOE Property Management", "gold");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [showNotification]);
+
   const handleSignupDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -80,22 +91,26 @@ export default function AuthPage() {
       }
 
       if (data.user) {
-        // Create user doc in Firebase Firestore so the profile works exactly as before
-        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        await setDoc(doc(db, 'users', data.user.id), {
-          uid: data.user.id,
-          name: name,
-          email: email,
-          role: role!,
-          bio: '',
-          contactNumber: '',
-          isPublicContact: false,
-          showPhoneNumber: false,
-          showEmail: false,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+        try {
+          // Create user doc in Firebase Firestore so the profile works exactly as before
+          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
+          await setDoc(doc(db, 'users', data.user.id), {
+            uid: data.user.id,
+            name: name,
+            email: email,
+            role: role!,
+            bio: '',
+            contactNumber: '',
+            isPublicContact: false,
+            showPhoneNumber: false,
+            showEmail: false,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        } catch (dbErr) {
+          console.warn("Could not pre-create user Firestore profile. This will be automatically created on first verification login:", dbErr);
+        }
       }
 
       showNotification("Check your email for confirmation!", "gold");
@@ -272,7 +287,7 @@ export default function AuthPage() {
       <button
         disabled={!role}
         onClick={() => setSignupStep(1)}
-        className="w-full mt-8 py-5 bg-[#0a2f1d] text-white rounded-xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-3 border border-accent/40 active:scale-95 disabled:opacity-30 disabled:grayscale"
+        className="w-full mt-8 py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-3 border border-accent/40 active:scale-95 disabled:opacity-30 disabled:grayscale"
       >
         Set Credentials
         <ArrowRight className="w-4 h-4" />
@@ -420,7 +435,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-5 bg-[#0a2f1d] text-white rounded-xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-2 border border-accent/40 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                className="w-full py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-2 border border-accent/40 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
               >
                 {loading ? 'Processing...' : isLogin ? 'Sign In Portal' : 'Create HOE Account'}
                 {!loading && <ArrowRight className="w-4 h-4" />}
@@ -508,7 +523,7 @@ export default function AuthPage() {
               <button 
                 type="button"
                 onClick={handleCloseVerifyModal} 
-                className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-gold rounded-xl font-black uppercase tracking-[0.3em] text-[10px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+                className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
               >
                 I Understand
               </button>

@@ -109,12 +109,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const sbUser = session.user;
+        const isEmailConfirmed = !!sbUser.email_confirmed_at;
+
         const mappedUser = {
           uid: sbUser.id,
           email: sbUser.email || '',
           displayName: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || '',
           photoURL: sbUser.user_metadata?.avatar_url || '',
-          emailVerified: !!sbUser.email_confirmed_at,
+          emailVerified: isEmailConfirmed,
         };
 
         setUser(mappedUser);

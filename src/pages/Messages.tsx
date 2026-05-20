@@ -3,14 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   MessageSquare, Search, Filter, MoreVertical, 
   Send, Phone, Video, Info, ArrowLeft, 
-  CheckCheck, Clock, Paperclip, Smile, Loader2, User as UserIcon
+  CheckCheck, Clock, Paperclip, Smile, Loader2, User as UserIcon,
+  Pin, PinOff
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -37,6 +38,12 @@ interface Chat {
   lastMessage: string;
   lastMessageAt: any;
   propertyId: string;
+  pinnedByUsers?: string[];
+  pinnedMessage?: {
+    id: string;
+    text: string;
+    senderName: string;
+  } | null;
   otherUser?: {
     uid: string;
     name: string;
@@ -169,7 +176,61 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
     }
   };
 
+  const handleTogglePinChat = async (e: React.MouseEvent, chatId: string, currentPinned: string[] = []) => {
+    e.stopPropagation();
+    if (!user) return;
+    const isPinned = currentPinned.includes(user.uid);
+    const updatedPinned = isPinned 
+      ? currentPinned.filter(uid => uid !== user.uid)
+      : [...currentPinned, user.uid];
+      
+    try {
+      await updateDoc(doc(db, 'conversations', chatId), {
+        pinnedByUsers: updatedPinned
+      });
+    } catch (err) {
+      console.error("Failed to pin/unpin chat thread:", err);
+    }
+  };
+
+  const handlePinMessage = async (msgId: string, text: string, senderId: string) => {
+    if (!selectedChatId || !user) return;
+    const senderName = senderId === user.uid 
+      ? (profile?.name || user.displayName || 'You')
+      : (currentChat?.otherUser?.name || 'User');
+      
+    try {
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
+        pinnedMessage: { id: msgId, text, senderName }
+      });
+    } catch (err) {
+      console.error("Failed to pin message:", err);
+    }
+  };
+
+  const handleUnpinMessage = async () => {
+    if (!selectedChatId) return;
+    try {
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
+        pinnedMessage: null
+      });
+    } catch (err) {
+      console.error("Failed to unpin message:", err);
+    }
+  };
+
   const currentChat = chats.find(c => c.id === selectedChatId);
+
+  const sortedChats = [...chats].sort((a, b) => {
+    const aPinned = a.pinnedByUsers?.includes(user?.uid || '') ? 1 : 0;
+    const bPinned = b.pinnedByUsers?.includes(user?.uid || '') ? 1 : 0;
+    if (aPinned !== bPinned) {
+      return bPinned - aPinned;
+    }
+    const aTime = a.lastMessageAt?.toDate?.() || a.lastMessageAt || 0;
+    const bTime = b.lastMessageAt?.toDate?.() || b.lastMessageAt || 0;
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
 
   if (!user) {
     return (
@@ -226,13 +287,17 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                   <p className="text-[10px] font-bold text-primary/30 uppercase tracking-[0.2em]">No conversations yet</p>
                 </div>
               ) : (
-                chats.map((chat) => (
+                sortedChats.map((chat) => (
                   <button
                     key={chat.id}
                     onClick={() => setSelectedChatId(chat.id)}
                     className={cn(
-                      "w-full text-left p-4 rounded-3xl transition-all duration-300 flex gap-4 group hover:bg-secondary/50",
-                      selectedChatId === chat.id ? "bg-primary text-secondary shadow-xl shadow-primary/20" : "bg-transparent"
+                      "w-full text-left p-4 rounded-3xl transition-all duration-300 flex gap-4 group hover:bg-secondary/50 relative border",
+                      selectedChatId === chat.id 
+                        ? "bg-primary text-secondary shadow-xl shadow-primary/20 border-accent/20" 
+                        : chat.pinnedByUsers?.includes(user?.uid || '')
+                          ? "bg-accent/5 border-accent/20"
+                          : "bg-transparent border-transparent"
                     )}
                   >
                     <div className="relative flex-shrink-0">
@@ -246,12 +311,29 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                     </div>
                     <div className="flex-grow overflow-hidden">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className={cn("font-bold text-sm truncate", selectedChatId === chat.id ? "text-secondary" : "text-primary")}>
-                          {chat.otherUser?.name || 'User'}
-                        </h4>
-                        <span className={cn("text-[9px] font-bold uppercase tracking-widest", selectedChatId === chat.id ? "text-accent" : "text-primary/30")}>
-                          {chat.lastMessageAt ? new Date(chat.lastMessageAt?.toDate?.() || chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className={cn("font-bold text-sm truncate", selectedChatId === chat.id ? "text-secondary" : "text-primary")}>
+                            {chat.otherUser?.name || 'User'}
+                          </h4>
+                          {(chat.pinnedByUsers?.includes(user?.uid || '')) && (
+                            <Pin className="w-3 h-3 text-[#D4AF37] fill-[#D4AF37] flex-shrink-0 rotate-[30deg]" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleTogglePinChat(e, chat.id, chat.pinnedByUsers)}
+                            className={cn(
+                              "p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-secondary transition-all",
+                              chat.pinnedByUsers?.includes(user?.uid || '') && "opacity-100 text-accent"
+                            )}
+                          >
+                            <Pin className={cn("w-3.5 h-3.5", chat.pinnedByUsers?.includes(user?.uid || '') ? "text-[#D4AF37] fill-[#D4AF37]" : "text-primary/20 hover:text-accent")} />
+                          </button>
+                          <span className={cn("text-[9px] font-bold uppercase tracking-widest flex-shrink-0", selectedChatId === chat.id ? "text-accent" : "text-primary/30")}>
+                            {chat.lastMessageAt ? new Date(chat.lastMessageAt?.toDate?.() || chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
                       </div>
                       <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-1 truncate", selectedChatId === chat.id ? "text-accent/60" : "text-accent")}>{chat.propertyId}</p>
                       <p className={cn("text-xs truncate", selectedChatId === chat.id ? "text-secondary/60" : "text-primary/40")}>{chat.lastMessage || 'No messages yet'}</p>
@@ -297,7 +379,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                   </div>
                 </div>
 
-                {/* Property Context Banner */}
+                 {/* Property Context Banner */}
                 {currentChat?.propertyId && (
                   <div className="px-6 py-3 bg-accent/5 border-b border-accent/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -310,23 +392,64 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                   </div>
                 )}
 
+                {/* Pinned Message Billboard */}
+                {currentChat?.pinnedMessage && (
+                  <div className="px-6 py-3.5 bg-accent/5 border-b border-accent/20 flex items-center justify-between animate-fadeIn">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 bg-accent/10 rounded-full flex items-center justify-center border border-accent/20">
+                        <Pin className="w-3.5 h-3.5 text-[#D4AF37] fill-[#D4AF37]" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-accent leading-none mb-1">Pinned by {currentChat.pinnedMessage.senderName}</span>
+                        <p className="text-xs text-primary font-medium line-clamp-1 italic">"{currentChat.pinnedMessage.text}"</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleUnpinMessage}
+                      className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#ff4444] bg-[#ff4444]/15 rounded-full hover:bg-[#ff4444] hover:text-white transition-all"
+                    >
+                      Unpin
+                    </button>
+                  </div>
+                )}
+
                 {/* Messages List */}
                 <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar pb-32">
                   {messages.map((msg) => (
                     <div 
                       key={msg.id}
                       className={cn(
-                        "flex flex-col max-w-[80%] md:max-w-md",
+                        "flex flex-col max-w-[85%] md:max-w-md group/msg relative",
                         msg.senderId === user.uid ? "ml-auto items-end" : "items-start"
                       )}
                     >
-                      <div className={cn(
-                        "p-5 rounded-3xl text-sm leading-relaxed shadow-sm",
-                        msg.senderId === user.uid 
-                          ? "bg-primary text-secondary rounded-tr-none shadow-primary/5" 
-                          : "bg-white text-primary rounded-tl-none border border-primary/5 shadow-primary/5"
-                      )}>
-                        {msg.text}
+                      <div className="flex items-center gap-3 w-full">
+                        {msg.senderId !== user.uid && (
+                          <button 
+                            onClick={() => handlePinMessage(msg.id, msg.text, msg.senderId)}
+                            className="opacity-0 group-hover/msg:opacity-100 p-2 hover:bg-white rounded-xl transition-all text-primary/20 hover:text-accent flex-shrink-0 border border-transparent hover:border-accent/10"
+                            title="Pin message to top"
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <div className={cn(
+                          "p-5 rounded-3xl text-sm leading-relaxed shadow-sm flex-grow",
+                          msg.senderId === user.uid 
+                            ? "bg-primary text-secondary rounded-tr-none shadow-primary/5" 
+                            : "bg-white text-primary rounded-tl-none border border-primary/5 shadow-primary/5"
+                        )}>
+                          {msg.text}
+                        </div>
+                        {msg.senderId === user.uid && (
+                          <button 
+                            onClick={() => handlePinMessage(msg.id, msg.text, msg.senderId)}
+                            className="opacity-0 group-hover/msg:opacity-100 p-2 hover:bg-white rounded-xl transition-all text-primary/20 hover:text-accent flex-shrink-0 border border-transparent hover:border-accent/10"
+                            title="Pin message to top"
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-2 px-1">
                         <span className="text-[10px] font-bold text-primary/30">

@@ -46,6 +46,34 @@ export default function ManageProperties() {
     fetchProperties();
   }, [user]);
 
+  const handleUpdateStatus = async (propertyId: string, newStatus: string) => {
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const { db: firestoreDb } = await import('../lib/firebase');
+      await updateDoc(doc(firestoreDb, 'properties', propertyId), {
+        status: newStatus,
+        updatedAt: new Date()
+      });
+      setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: newStatus } as Property : p));
+    } catch (err) {
+      console.error("Error updating property status:", err);
+    }
+  };
+
+  const handleArchiveProperty = async (propertyId: string) => {
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const { db: firestoreDb } = await import('../lib/firebase');
+      await updateDoc(doc(firestoreDb, 'properties', propertyId), {
+        status: 'Archived',
+        updatedAt: new Date()
+      });
+      setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: 'Archived' } as Property : p));
+    } catch (err) {
+      console.error("Error archiving property:", err);
+    }
+  };
+
   const filteredProperties = filter === 'All' 
     ? properties 
     : properties.filter(p => p.status === filter);
@@ -183,19 +211,31 @@ export default function ManageProperties() {
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-2">
-                          <Link to="/dashboard/landlord/add" className="p-3 bg-secondary hover:bg-primary hover:text-accent rounded-xl transition-all group/btn shadow-sm">
+                          <Link to={`/dashboard/landlord/add?id=${p.id}`} className="p-3 bg-secondary hover:bg-primary hover:text-accent rounded-xl transition-all group/btn shadow-sm">
                             <Edit className="w-4 h-4" />
                           </Link>
                           {p.status === 'Live' ? (
-                            <button className="p-3 bg-secondary hover:bg-orange-50 hover:text-orange-500 rounded-xl transition-all shadow-sm" title="Pause Listing">
+                            <button 
+                              onClick={() => handleUpdateStatus(p.id, 'Paused')}
+                              className="p-3 bg-secondary hover:bg-orange-50 hover:text-orange-500 rounded-xl transition-all shadow-sm" 
+                              title="Pause Listing"
+                            >
                                <Clock className="w-4 h-4" />
                             </button>
                           ) : p.status === 'Paused' ? (
-                            <button className="p-3 bg-secondary hover:bg-green-50 hover:text-green-500 rounded-xl transition-all shadow-sm" title="Resume Listing">
+                            <button 
+                              onClick={() => handleUpdateStatus(p.id, 'Live')}
+                              className="p-3 bg-secondary hover:bg-green-50 hover:text-green-500 rounded-xl transition-all shadow-sm" 
+                              title="Resume Listing"
+                            >
                                <CheckCircle2 className="w-4 h-4" />
                             </button>
                           ) : null}
-                          <button className="p-3 bg-secondary hover:bg-red-50 hover:text-red-500 rounded-xl transition-all shadow-sm" title="Archive Listing">
+                          <button 
+                            onClick={() => handleArchiveProperty(p.id)}
+                            className="p-3 bg-secondary hover:bg-red-50 hover:text-red-500 rounded-xl transition-all shadow-sm" 
+                            title="Archive Listing"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

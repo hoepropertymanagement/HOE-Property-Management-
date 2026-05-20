@@ -13,14 +13,17 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
+import { supabase } from '../lib/supabase';
 
 import IdentityVerification from '../components/IdentityVerification';
 
 export default function AddProperty() {
   const { profile, user } = useAuth();
+  const { showNotification } = useNotification();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
@@ -52,25 +55,109 @@ export default function AddProperty() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Auto-save logic
+  const [searchParams] = useSearchParams();
+  const propertyId = searchParams.get('id');
+  const [showDraftResumeBanner, setShowDraftResumeBanner] = useState(false);
+  const [cachedDraftData, setCachedDraftData] = useState<any>(null);
+
+  const getFirstMissedStep = (data: typeof formData) => {
+    if (!data.description || data.description.length < 50) return 2;
+    if (!data.epcCertificate) return 3;
+    if (!data.monthlyRent) return 4;
+    if (!data.noImage && (!data.images || data.images.length === 0)) return 5;
+    return 1;
+  };
+
+  // 1. Load draft from database if id is present
   useEffect(() => {
+    async function fetchProperty() {
+      if (!propertyId || !user) return;
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db: firestoreDb } = await import('../lib/firebase');
+        const docRef = doc(firestoreDb, 'properties', propertyId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const loadedData = {
+            title: data.title || '',
+            type: data.type || 'Apartment',
+            isStudent: !!data.isStudent,
+            isShared: !!data.isShared,
+            isBillsIncluded: !!data.isBillsIncluded,
+            billsDescription: data.billsDescription || '',
+            councilTaxBand: data.councilTaxBand || '',
+            hasParking: !!data.hasParking,
+            hasGarden: !!data.hasGarden,
+            contactNumber: data.contactNumber || '',
+            description: data.description || '',
+            floorplan: data.floorplan || null,
+            epcEE: data.epcEE || '',
+            epcEI: data.epcEI || '',
+            epcCertificate: data.epcCertificate || null,
+            monthlyRent: data.monthlyRent ? String(data.monthlyRent) : '',
+            securityDeposit: data.securityDeposit ? String(data.securityDeposit) : '',
+            holdingDeposit: data.holdingDeposit ? String(data.holdingDeposit) : '',
+            images: data.images || [],
+            noImage: !!data.noImage,
+            status: data.status || 'Draft'
+          };
+          setFormData(loadedData);
+          
+          // Smart resume logic to jump to first missed step
+          const missed = getFirstMissedStep(loadedData);
+          setStep(missed);
+          showNotification("Resumed draft from cloud!", "gold");
+        }
+      } catch (err) {
+        console.error("Error fetching property draft from database:", err);
+      }
+    }
+    fetchProperty();
+  }, [propertyId, user]);
+
+  // 2. Check for local storage draft if NO database id is present
+  useEffect(() => {
+    if (propertyId) return; // Ignore local storage draft if editing a cloud draft
     const savedDraft = localStorage.getItem('hoe_listing_draft');
     if (savedDraft) {
       try {
         const parsed = JSON.parse(savedDraft);
-        setFormData(prev => ({ ...prev, ...parsed }));
+        if (parsed.description || parsed.monthlyRent || parsed.contactNumber || parsed.images?.length > 0) {
+          setCachedDraftData(parsed);
+          setShowDraftResumeBanner(true);
+        }
       } catch (e) {
-        console.error("Failed to load draft", e);
+        console.error("Failed to parse cached draft", e);
       }
     }
-  }, []);
+  }, [propertyId]);
 
+  // 3. Silent auto-save to local storage (only for new listings, i.e., no database ID)
   useEffect(() => {
+    if (propertyId) return;
     const timer = setTimeout(() => {
       localStorage.setItem('hoe_listing_draft', JSON.stringify(formData));
-    }, 2000);
+    }, 5000);
     return () => clearTimeout(timer);
-  }, [formData]);
+  }, [formData, propertyId]);
+
+  const handleResumeCachedDraft = () => {
+    if (cachedDraftData) {
+      setFormData(prev => ({ ...prev, ...cachedDraftData }));
+      const missed = getFirstMissedStep(cachedDraftData);
+      setStep(missed);
+      showNotification("Resumed cached progress!", "gold");
+    }
+    setShowDraftResumeBanner(false);
+  };
+
+  const handleClearCachedDraft = () => {
+    localStorage.removeItem('hoe_listing_draft');
+    setCachedDraftData(null);
+    setShowDraftResumeBanner(false);
+    showNotification("Draft progress cleared.", "gold");
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'images' | 'floorplan' | 'epcCertificate' = 'images') => {
     const files = e.target.files;
@@ -134,30 +221,122 @@ export default function AddProperty() {
     setError(null);
     
     try {
-      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+      const { collection, addDoc, doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
       const { db } = await import('../lib/firebase');
       
       const propertyData = {
-        ...formData,
+        title: formData.title || 'HOE Premium Listing',
+        type: formData.type,
+        isStudent: formData.isStudent,
+        isShared: formData.isShared,
+        isBillsIncluded: formData.isBillsIncluded,
+        billsDescription: formData.billsDescription,
+        councilTaxBand: formData.councilTaxBand,
+        hasParking: formData.hasParking,
+        hasGarden: formData.hasGarden,
+        contactNumber: formData.contactNumber,
+        description: formData.description,
+        floorplan: formData.floorplan,
+        epcEE: formData.epcEE,
+        epcEI: formData.epcEI,
+        epcCertificate: formData.epcCertificate,
+        monthlyRent: formData.monthlyRent,
+        price: parseFloat(formData.monthlyRent),
+        securityDeposit: formData.securityDeposit,
+        holdingDeposit: formData.holdingDeposit,
+        images: formData.images,
+        noImage: formData.noImage,
         landlordId: user.uid,
         landlordName: profile?.name || user.displayName || 'Landlord',
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         // Normalize search fields for fuzzy matching if needed later
-        locationSearch: formData.title.toLowerCase(),
-        // Ensure price is numeric
-        price: parseFloat(formData.monthlyRent),
+        locationSearch: (formData.title || '').toLowerCase(),
         // Ensure status is Live
         status: 'Live'
       };
 
-      await addDoc(collection(db, 'properties'), propertyData);
+      if (propertyId) {
+        // Update existing draft / property to live
+        await updateDoc(doc(db, 'properties', propertyId), propertyData);
+        showNotification("Listing published live!", "gold");
+      } else {
+        // Create new live listing
+        await addDoc(collection(db, 'properties'), {
+          ...propertyData,
+          createdAt: serverTimestamp()
+        });
+        showNotification("Listing published live!", "gold");
+      }
       
       localStorage.removeItem('hoe_listing_draft');
       navigate('/dashboard/landlord/properties');
     } catch (err: any) {
       console.error("Failed to publish property:", err);
       setError('Failed to publish listing. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!user) {
+      setError('You must be logged in to save a draft.');
+      return;
+    }
+    
+    setIsPublishing(true);
+    setError(null);
+    
+    try {
+      const { collection, addDoc, doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      
+      const propertyData = {
+        title: formData.title || 'Untitled Property Draft',
+        type: formData.type,
+        isStudent: formData.isStudent,
+        isShared: formData.isShared,
+        isBillsIncluded: formData.isBillsIncluded,
+        billsDescription: formData.billsDescription,
+        councilTaxBand: formData.councilTaxBand,
+        hasParking: formData.hasParking,
+        hasGarden: formData.hasGarden,
+        contactNumber: formData.contactNumber,
+        description: formData.description,
+        floorplan: formData.floorplan,
+        epcEE: formData.epcEE,
+        epcEI: formData.epcEI,
+        epcCertificate: formData.epcCertificate,
+        monthlyRent: formData.monthlyRent,
+        price: formData.monthlyRent ? parseFloat(formData.monthlyRent) : 0,
+        securityDeposit: formData.securityDeposit,
+        holdingDeposit: formData.holdingDeposit,
+        images: formData.images,
+        noImage: formData.noImage,
+        landlordId: user.uid,
+        landlordName: profile?.name || user.displayName || 'Landlord',
+        updatedAt: serverTimestamp(),
+        locationSearch: (formData.title || '').toLowerCase(),
+        status: 'Draft'
+      };
+
+      if (propertyId) {
+        await updateDoc(doc(db, 'properties', propertyId), propertyData);
+        showNotification("Draft saved to cloud!", "gold");
+      } else {
+        const docRef = await addDoc(collection(db, 'properties'), {
+          ...propertyData,
+          createdAt: serverTimestamp()
+        });
+        showNotification("Draft saved to cloud!", "gold");
+        // Keep user on editing form but with active ID now
+        navigate(`/dashboard/landlord/add?id=${docRef.id}`, { replace: true });
+      }
+      
+      localStorage.removeItem('hoe_listing_draft');
+    } catch (err: any) {
+      console.error("Failed to save draft:", err);
+      setError('Failed to save draft. Please try again.');
     } finally {
       setIsPublishing(false);
     }
@@ -304,12 +483,12 @@ export default function AddProperty() {
                   value={formData.description}
                   onChange={(e) => updateFormData({ description: e.target.value })}
                   className="w-full bg-secondary p-10 rounded-[3rem] outline-none focus:ring-2 ring-accent transition-all font-medium text-primary border border-primary/10 h-64" 
-                  placeholder="Describe your property in detail (Min 100 characters)..." 
+                  placeholder="Describe your property in detail (Min 50 characters)..." 
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 mb-4 block px-2">Floorplan Attachment</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 mb-4 block px-2">Floorplan Attachment (Optional)</label>
                 <div 
                   onClick={() => document.getElementById('floorplan-upload')?.click()}
                   className={cn(
@@ -624,10 +803,11 @@ export default function AddProperty() {
   };
 
   const isNextDisabled = () => {
-    if (step === 2 && formData.description.length < 100) return true;
+    if (step === 2 && formData.description.length < 50) return true;
     if (step === 3 && !formData.epcCertificate) return true;
     if (step === 4 && !formData.monthlyRent) return true;
     if (step === 5 && !formData.noImage && formData.images.length === 0) return true;
+    if (step === 5 && !user?.emailVerified) return true;
     return false;
   };
 
@@ -637,6 +817,50 @@ export default function AddProperty() {
       
       <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
         <div className="max-w-4xl mx-auto">
+          {/* Custom Premium Verification Popover/Draft Resume Banner */}
+          <AnimatePresence>
+            {showDraftResumeBanner && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="fixed inset-0 z-[5000] flex items-center justify-center p-4 bg-primary/40 backdrop-blur-[6px]"
+              >
+                <div className="bg-white border-2 border-accent p-10 rounded-[3rem] max-w-lg w-full shadow-2xl relative text-center flex flex-col items-center gap-6">
+                  <button 
+                    onClick={handleClearCachedDraft}
+                    className="absolute top-6 right-6 text-primary/40 hover:text-accent font-bold text-2xl"
+                  >
+                    &times;
+                  </button>
+                  <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center">
+                    <Building className="w-10 h-10 text-accent" />
+                  </div>
+                  <h3 className="text-3xl font-serif italic text-primary">Resume Listing</h3>
+                  <p className="text-primary/60 text-xs font-medium uppercase tracking-[0.1em] leading-relaxed">
+                    We found an unfinished listing in your local session cache. Would you like to continue building it?
+                  </p>
+                  <div className="flex gap-4 w-full justify-center mt-4">
+                    <button
+                      type="button"
+                      onClick={handleResumeCachedDraft}
+                      className="px-8 py-4 bg-primary text-accent rounded-full font-black uppercase tracking-[0.2em] text-[10px] hover:bg-accent hover:text-primary transition-all shadow-lg active:scale-95"
+                    >
+                      Yes, Resume
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearCachedDraft}
+                      className="px-8 py-4 bg-secondary text-primary/40 hover:text-red-500 rounded-full font-black uppercase tracking-[0.2em] text-[10px] transition-all border border-primary/5 active:scale-95"
+                    >
+                      No, Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <header className="flex flex-col gap-6 mb-16">
             {error && (
               <motion.div 
@@ -648,6 +872,48 @@ export default function AddProperty() {
                   <span className="text-white font-bold text-xs">!</span>
                 </div>
                 <p className="text-red-500 text-xs font-black uppercase tracking-widest leading-relaxed">{error}</p>
+              </motion.div>
+            )}
+
+            {!user?.emailVerified && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-[#ffebeb] border border-[#ff4444]/40 p-6 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-[#ff4444]/10 rounded-full flex items-center justify-center flex-shrink-0 border border-[#ff4444]/20">
+                    <span className="text-[#ff4444] text-lg font-bold">⚠️</span>
+                  </div>
+                  <div>
+                    <h4 className="text-[#ff4444] text-[11px] font-black uppercase tracking-widest leading-none mb-1">Email Verification Required</h4>
+                    <p className="text-[#ff4444]/70 text-[10px] font-bold uppercase tracking-wide leading-relaxed">
+                      You must verify your email address to publish properties. Your landlord listing options are currently locked.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!user?.email) return;
+                    try {
+                      const { error: resendErr } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: user.email,
+                        options: {
+                          emailRedirectTo: window.location.origin + '/auth'
+                        }
+                      });
+                      if (resendErr) throw resendErr;
+                      showNotification("Verification email resent!", "gold");
+                    } catch (err: any) {
+                      showNotification("Failed to resend. Please retry.", "red");
+                    }
+                  }}
+                  className="px-6 py-2.5 bg-[#ff4444] text-white hover:bg-black rounded-full font-black uppercase tracking-widest text-[9px] transition-all self-start md:self-auto"
+                >
+                  Resend Email
+                </button>
               </motion.div>
             )}
             <Link 
@@ -677,18 +943,27 @@ export default function AddProperty() {
             {renderStep()}
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50 backdrop-blur-xl p-8 rounded-[3.5rem] border border-primary/5 shadow-2xl relative z-10">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white/50 backdrop-blur-xl p-8 rounded-[3.5rem] border border-primary/5 shadow-2xl relative z-10">
             <button 
               onClick={() => step > 1 ? setStep(step - 1) : navigate('/dashboard/landlord/properties')}
-              className="px-12 py-5 text-primary/40 font-black uppercase tracking-[0.3em] text-[10px] hover:text-primary transition-all rounded-full border border-primary/5 shadow-sm active:scale-95"
+              className="w-full sm:w-auto px-8 py-5 text-primary/40 font-black uppercase tracking-[0.3em] text-[10px] hover:text-primary transition-all rounded-full border border-primary/5 shadow-sm active:scale-95 text-center"
             >
               {step === 1 ? 'Terminate Draft' : 'Return Phase'}
+            </button>
+
+            <button 
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isPublishing}
+              className="w-full sm:w-auto px-8 py-5 bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-primary rounded-full font-black uppercase tracking-[0.3em] text-[10px] transition-all border border-[#D4AF37]/20 shadow-sm active:scale-95 disabled:opacity-50 text-center"
+            >
+              Save to Draft
             </button>
             
             <button 
               onClick={() => step < 5 ? setStep(step + 1) : handlePublish()}
               disabled={isNextDisabled() || isPublishing}
-              className="w-full md:w-auto px-16 py-5 bg-primary text-accent rounded-full font-black uppercase tracking-[0.4em] text-[11px] shadow-2xl shadow-primary/30 hover:bg-black hover:scale-[1.05] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none"
+              className="w-full sm:w-auto px-10 py-5 bg-primary text-accent rounded-full font-black uppercase tracking-[0.4em] text-[11px] shadow-2xl shadow-primary/30 hover:bg-black hover:scale-[1.05] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none text-center"
             >
               {isPublishing ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
