@@ -8,6 +8,7 @@ import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import OTPInput from '../components/OTPInput';
+import { supabase } from '../lib/supabase';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,6 +21,7 @@ export default function AuthPage() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [policyViolations, setPolicyViolations] = useState<{ notificationMessage: string }[]>([]);
   
@@ -31,6 +33,15 @@ export default function AuthPage() {
   const { loginWithGoogle, user, updateProfile } = useAuth();
   const { showNotification } = useNotification();
   const navigate = useNavigate();
+
+  const handleCloseVerifyModal = () => {
+    setShowVerifyModal(false);
+    setIsLogin(true);
+    setSignupStep(0);
+    setError('');
+    setPassword('');
+    setConfirmPassword('');
+  };
 
   useEffect(() => {
     if (user && !showSuccess && authStep === 'credentials') {
@@ -54,45 +65,43 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateFirebaseProfile(userCredential.user, { displayName: name });
-      
-      await updateProfile({ 
-        role: role!,
-        name: name,
-        email: email
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: { full_name: name },
+          emailRedirectTo: window.location.origin + '/auth'
+        }
       });
 
-      // Move to email verification step
-      try {
-        const { sendVerificationEmail } = await import('../services/verificationService');
-        await sendVerificationEmail(email);
-        showNotification("Verification code sent to " + email, "gold");
-      } catch (err) {
-        console.error("Failed to send verification email:", err);
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
       }
-      
-      setAuthStep('verify-email');
+
+      if (data.user) {
+        // Create user doc in Firebase Firestore so the profile works exactly as before
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        await setDoc(doc(db, 'users', data.user.id), {
+          uid: data.user.id,
+          name: name,
+          email: email,
+          role: role!,
+          bio: '',
+          contactNumber: '',
+          isPublicContact: false,
+          showPhoneNumber: false,
+          showEmail: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      showNotification("Check your email for confirmation!", "gold");
+      setShowVerifyModal(true);
     } catch (err: any) {
-      if (err.customData?._rawServerError) {
-        try {
-          const rawResponse = JSON.parse(err.customData._rawServerError);
-          if (rawResponse.error?.userNotifications) {
-            setPolicyViolations(rawResponse.error.userNotifications);
-            setError('PASSWORD DOES NOT MEET SECURITY POLICIES');
-          } else {
-            setError(err.message);
-          }
-        } catch (e) {
-          setError(err.message);
-        }
-      } else if (err.code === "auth/weak-password") {
-        setError("Password must be at least 8 characters long.");
-      } else if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered.");
-      } else {
-        setError(err.message);
-      }
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -100,8 +109,6 @@ export default function AuthPage() {
 
   const handleVerifyEmail = async (code: string) => {
     setLoading(true);
-    // In a real app with Google Apps Script bridge, we would verify here.
-    // For now, we simulate success and move to phone verification.
     setTimeout(() => {
       showNotification("Email verified successfully", "gold");
       setAuthStep('verify-phone');
@@ -111,7 +118,6 @@ export default function AuthPage() {
 
   const handleVerifyPhone = async (code: string) => {
     setLoading(true);
-    // Real Firebase Phone Auth logic would go here
     setTimeout(() => {
       showNotification("Phone verified successfully", "gold");
       setShowSuccess(true);
@@ -144,20 +150,28 @@ export default function AuthPage() {
     setLoading(true);
     setPolicyViolations([]);
     try {
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-      } catch (err: any) {
-        if (err.code === 'auth/user-not-found' || err.message.includes('user-not-found')) {
-          setError("You haven't made an account");
-        } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (signInError) {
+        const msg = signInError.message.toLowerCase();
+        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
           setError("one of the details is incorrect");
+        } else if (msg.includes('email not confirmed')) {
+          setError("Please confirm your email address first.");
+        } else if (msg.includes('user not found') || msg.includes('no user')) {
+          setError("You haven't made an account");
         } else {
-          setError("user should retry");
+          setError("one of the details is incorrect");
         }
-        throw err;
+        return;
       }
+
+      showNotification("Signed in successfully!", "gold");
     } catch (err: any) {
-      // Errors handled above
+      setError("user should retry");
     } finally {
       setLoading(false);
     }
@@ -344,23 +358,6 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {!isLogin && (
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] ml-1">Phone Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent/30" />
-                    <input
-                      type="tel"
-                      placeholder="+44 7000 000000"
-                      required
-                      className="w-full bg-[#0c0214]/60 border border-accent/20 rounded-xl py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-accent transition-all placeholder:text-white/10"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2">
                 <label className="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] ml-1">Password</label>
                 <div className="relative">
@@ -467,6 +464,7 @@ export default function AuthPage() {
 
             <div className="mt-10 text-center">
               <button
+                type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setSignupStep(0);
@@ -480,6 +478,44 @@ export default function AuthPage() {
           </>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {showVerifyModal && (
+          <div className="fixed inset-0 bg-[#0c0214]/90 backdrop-blur-[6px] z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#140526] border border-accent/40 p-8 md:p-10 rounded-[2rem] w-full max-w-sm relative shadow-2xl text-center"
+            >
+              <button 
+                type="button"
+                onClick={handleCloseVerifyModal}
+                className="absolute top-4 right-5 bg-transparent border-none text-white/50 hover:text-accent text-2xl cursor-pointer transition-colors"
+                style={{ fontSize: '1.5rem' }}
+              >
+                &times;
+              </button>
+              
+              <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent/30">
+                <span className="text-accent text-[1.4rem]">✉️</span>
+              </div>
+              <h3 className="text-white text-[12px] font-black uppercase tracking-[0.2em] mb-4">Verify Your Email</h3>
+              <p className="text-white/60 text-[11px] leading-relaxed mb-8 uppercase tracking-[0.05em]">
+                A secure verification link has been sent to your inbox. Please click the link to activate your House of Eden portal access.
+              </p>
+              
+              <button 
+                type="button"
+                onClick={handleCloseVerifyModal} 
+                className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-gold rounded-xl font-black uppercase tracking-[0.3em] text-[10px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+              >
+                I Understand
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 

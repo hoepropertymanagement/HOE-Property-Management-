@@ -23,6 +23,7 @@ import HelpFAQ from './pages/HelpFAQ';
 import TermsAndConditions from './pages/TermsAndConditions';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import CookiePolicy from './pages/CookiePolicy';
+import Compliance from './pages/Compliance';
 import Contact from './pages/Contact';
 import ProfilePage from './pages/ProfilePage';
 import Navbar from './components/Navbar';
@@ -112,6 +113,7 @@ export default function App() {
                       <Route path="/terms" element={<TermsAndConditions />} />
                       <Route path="/privacy" element={<PrivacyPolicy />} />
                       <Route path="/cookies" element={<CookiePolicy />} />
+                      <Route path="/compliance" element={<Compliance />} />
                       
                       {/* Dashboard Routes */}
                       <Route path="/dashboard" element={<ProtectedRoute><DashboardGateway /></ProtectedRoute>} />

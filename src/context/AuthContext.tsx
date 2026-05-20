@@ -3,6 +3,7 @@ import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signOut 
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { FirebaseUser } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
+import { supabase } from '../lib/supabase';
 
 interface UserProfile {
   uid: string;
@@ -21,7 +22,7 @@ interface UserProfile {
 }
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: any | null;
   profile: UserProfile | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
@@ -32,24 +33,34 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const docRef = doc(db, 'users', user.uid);
+    let unsubscribeProfile: (() => void) | null = null;
+    let isSupabasePrimary = false;
+
+    // Listen to Firebase Auth
+    const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        isSupabasePrimary = false;
+        // Sign out of Supabase if Firebase is active
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.auth.signOut();
+        }
+
+        setUser(firebaseUser);
+        const docRef = doc(db, 'users', firebaseUser.uid);
         try {
           const docSnap = await getDoc(docRef);
-          
           if (!docSnap.exists()) {
             const newProfile: UserProfile = {
-              uid: user.uid,
-              name: user.displayName || 'New User',
-              email: user.email || '',
-              photoURL: user.photoURL || '',
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'New User',
+              email: firebaseUser.email || '',
+              photoURL: firebaseUser.photoURL || '',
               bio: '',
               contactNumber: '',
               isPublicContact: false,
@@ -61,11 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await setDoc(docRef, newProfile);
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
         }
 
-        // Listen to profile changes
-        const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+        if (unsubscribeProfile) unsubscribeProfile();
+        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
@@ -73,17 +84,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setLoading(false);
         }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
           setLoading(false);
         });
-        return () => unsubscribeProfile();
       } else {
-        setProfile(null);
-        setLoading(false);
+        if (!isSupabasePrimary) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+          }
+        }
       }
     });
 
-    return () => unsubscribeAuth();
+    // Listen to Supabase Auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        isSupabasePrimary = true;
+        // Sign out of Firebase if Supabase triggers an active session
+        if (auth.currentUser) {
+          await signOut(auth);
+        }
+
+        const sbUser = session.user;
+        const mappedUser = {
+          uid: sbUser.id,
+          email: sbUser.email || '',
+          displayName: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || '',
+          photoURL: sbUser.user_metadata?.avatar_url || '',
+          emailVerified: !!sbUser.email_confirmed_at,
+        };
+
+        setUser(mappedUser);
+
+        const docRef = doc(db, 'users', sbUser.id);
+        try {
+          const docSnap = await getDoc(docRef);
+          if (!docSnap.exists()) {
+            const newProfile: UserProfile = {
+              uid: sbUser.id,
+              name: mappedUser.displayName || 'New User',
+              email: mappedUser.email,
+              photoURL: mappedUser.photoURL,
+              bio: '',
+              contactNumber: '',
+              isPublicContact: false,
+              showPhoneNumber: false,
+              showEmail: false,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            };
+            await setDoc(docRef, newProfile);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${sbUser.id}`);
+        }
+
+        if (unsubscribeProfile) unsubscribeProfile();
+        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as UserProfile);
+          } else {
+            setProfile(null);
+          }
+          setLoading(false);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, `users/${sbUser.id}`);
+          setLoading(false);
+        });
+      } else {
+        if (isSupabasePrimary) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeFirebase();
+      subscription.unsubscribe();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   const loginWithGoogle = async () => {
@@ -97,6 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await signOut(auth);
+    await supabase.auth.signOut();
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
@@ -106,7 +191,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
-        // If doc doesn't exist (race condition with onAuthStateChanged), create it with all required fields
         const newProfile: UserProfile = {
           uid: user.uid,
           name: updates.name || user.displayName || 'New User',

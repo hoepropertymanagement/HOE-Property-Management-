@@ -49,6 +49,7 @@ export default function Footer() {
               <li><Link to="/terms" className="text-sm text-secondary/60 hover:text-accent transition-colors">Terms & Conditions</Link></li>
               <li><Link to="/privacy" className="text-sm text-secondary/60 hover:text-accent transition-colors">Privacy Policy</Link></li>
               <li><Link to="/cookies" className="text-sm text-secondary/60 hover:text-accent transition-colors">Cookie Policy</Link></li>
+              <li><Link to="/compliance" className="text-sm text-secondary/60 hover:text-accent transition-colors">Legal & Compliance</Link></li>
             </ul>
           </div>
         </div>
@@ -65,8 +66,8 @@ export default function Footer() {
           </div>
 
           {/* PRS Compliance Section */}
-          <div className="flex flex-col items-center md:items-end gap-3">
-            <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center md:items-end gap-3 text-center md:text-right">
+            <div className="flex flex-col items-center md:items-end gap-2">
               <a 
                 href="https://www.theprs.co.uk/" 
                 target="_blank" 
@@ -77,7 +78,7 @@ export default function Footer() {
                   <img 
                     src="property-redress-logo.jpeg" 
                     alt="Property Redress Scheme Member" 
-                    style={{ height: '64px', width: 'auto', cursor: 'pointer', opacity: 0.9, transition: 'opacity 0.3s ease' }}
+                    style={{ height: '40px', width: 'auto', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.3s ease' }}
                     onError={() => setLogoError(true)}
                     referrerPolicy="no-referrer"
                     className="hover:opacity-100 transition-opacity"
@@ -85,7 +86,7 @@ export default function Footer() {
                 ) : (
                   <svg 
                     viewBox="0 0 320 100" 
-                    style={{ height: '64px', width: 'auto', cursor: 'pointer', opacity: 0.9 }} 
+                    style={{ height: '40px', width: 'auto', cursor: 'pointer', opacity: 0.8 }} 
                     fill="none" 
                     xmlns="http://www.w3.org/2000/svg" 
                     className="hover:opacity-100 transition-opacity"
@@ -105,11 +106,12 @@ export default function Footer() {
                   </svg>
                 )}
               </a>
-              <div className="text-[8px] font-black uppercase tracking-[0.15em] text-[#d4af37] bg-white/[0.03] px-2 py-1 rounded border border-white/5 text-center select-none">
-                Member No: PRS058192
+              <div className="text-[11px] text-secondary/60 leading-relaxed font-sans mt-2 space-y-1">
+                <p>PRS Member ID: <strong className="text-accent">PRS058192</strong></p>
+                <p>Fully Insured by: <strong className="text-secondary">Simply Business</strong> | Policy: <strong className="text-secondary/80">CHBS5558206XB</strong></p>
               </div>
             </div>
-            <p className="text-[9px] text-secondary/30 uppercase tracking-[0.3em] font-bold">
+            <p className="text-[9px] text-secondary/35 uppercase tracking-[0.3em] font-bold mt-1">
               Independent Redress Provided
             </p>
           </div>
