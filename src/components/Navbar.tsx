@@ -224,33 +224,33 @@ export default function Navbar() {
                   <Link to="/dashboard" className={getMobileLinkClass(isDashboardActive)} onClick={() => setIsOpen(false)}>Dashboard</Link>
                 </div>
 
-                <div className="pt-6 border-t border-primary/5 flex flex-col gap-3">
+                <div className="pt-6 border-t border-primary/5 flex flex-col gap-4">
                   {user ? (
-                    <>
+                    <div className="grid grid-cols-2 gap-3">
                       <Link 
                         to="/profile" 
-                        className="w-full py-4 bg-primary text-secondary text-center rounded-xl font-black uppercase tracking-[0.2em] text-[9px]"
+                        className="py-3 bg-primary text-secondary text-center rounded-lg font-black uppercase tracking-[0.15em] text-[10px] flex items-center justify-center cursor-pointer hover:bg-primary/95 transition-all"
                         onClick={() => setIsOpen(false)}
                       >
                         Profile
                       </Link>
                       <button 
                         onClick={() => { setShowLogoutModal(true); setIsOpen(false); }}
-                        className="w-full py-4 bg-red-50 text-red-500 text-center rounded-xl font-black uppercase tracking-[0.2em] text-[10px]"
+                        className="py-3 bg-red-50 text-red-600 hover:bg-red-100/80 text-center rounded-lg font-black uppercase tracking-[0.15em] text-[10px] flex items-center justify-center cursor-pointer transition-all border border-red-100"
                       >
                         Sign Out
                       </button>
-                    </>
+                    </div>
                   ) : (
                     <Link 
                       to="/auth" 
-                      className="w-full py-4 bg-primary text-secondary text-center rounded-xl font-black uppercase tracking-[0.2em] text-[10px]"
+                      className="w-full py-3 bg-[#0a2f1d] text-[#D4AF37] text-center rounded-lg font-black uppercase tracking-[0.15em] text-[10px] flex items-center justify-center cursor-pointer hover:bg-primary/95 transition-all border border-[#D4AF37]/30 shadow-md"
                       onClick={() => setIsOpen(false)}
                     >
                       Login/Sign up
                     </Link>
                   )}
-                  <p className="text-center text-[7px] text-primary/20 uppercase tracking-[0.4em] mt-4 font-bold">House of Eden Property Management Premium Experience</p>
+                  <p className="text-center text-[7px] text-primary/30 uppercase tracking-[0.3em] font-medium">House of Eden Property Management</p>
                 </div>
               </div>
             </motion.div>

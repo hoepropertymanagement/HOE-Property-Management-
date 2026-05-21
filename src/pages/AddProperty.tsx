@@ -18,6 +18,8 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { supabase } from '../lib/supabase';
+import { storage as firebaseStorage } from '../lib/firebase';
+import { ref as firebaseStorageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import IdentityVerification from '../components/IdentityVerification';
 
@@ -168,33 +170,129 @@ export default function AddProperty() {
     showNotification("Draft progress cleared.", "gold");
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'images' | 'floorplan' | 'epcCertificate' = 'images') => {
+  const compressAndUploadImage = async (rawFile: File, maxWidth = 1200, quality = 0.8): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(rawFile);
+      
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(async (blob) => {
+              if (!blob) {
+                resolve(null);
+                return;
+              }
+              const compressedFile = new File([blob], rawFile.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
+                type: 'image/jpeg' 
+              });
+              
+              const uniqueFileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+              
+              try {
+                // Upload directly to the 'property-images' bucket
+                const { error } = await supabase.storage
+                  .from('property-images')
+                  .upload(uniqueFileName, compressedFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                  });
+
+                if (error) {
+                  console.warn("Supabase Storage Upload Failed (falling back to Firebase Storage):", error);
+                  try {
+                    const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+                    await uploadBytes(fRef, compressedFile);
+                    const downloadUrl = await getDownloadURL(fRef);
+                    resolve(downloadUrl);
+                  } catch (firebaseErr) {
+                    console.error("Firebase Storage Upload also failed:", firebaseErr);
+                    resolve(null);
+                  }
+                  return;
+                }
+
+                const { data: urlData } = supabase.storage
+                  .from('property-images')
+                  .getPublicUrl(uniqueFileName);
+                  
+                resolve(urlData.publicUrl);
+              } catch (err) {
+                console.warn("Exception during Supabase upload (falling back to Firebase Storage):", err);
+                try {
+                  const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+                  await uploadBytes(fRef, compressedFile);
+                  const downloadUrl = await getDownloadURL(fRef);
+                  resolve(downloadUrl);
+                } catch (firebaseErr) {
+                  console.error("Firebase Storage Upload also failed:", firebaseErr);
+                  resolve(null);
+                }
+              }
+            }, 'image/jpeg', quality);
+          } else {
+            resolve(null);
+          }
+        };
+        img.onerror = () => resolve(null);
+      };
+      reader.onerror = () => resolve(null);
+    });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'images' | 'floorplan' | 'epcCertificate' = 'images') => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
     
     if (field === 'images') {
-      const newImages: string[] = [...formData.images];
-      Array.from(files).forEach((file: File) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newImages.push(reader.result as string);
-          if (newImages.length <= 20) { // Increased limit for enhanced section
-            updateFormData({ images: [...newImages] });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+      const filesArray: File[] = Array.from(files);
+      const newImages = [...formData.images];
+
+      for (const file of filesArray) {
+        if (newImages.length >= 20) break;
+        showNotification(`Compressing and uploading ${file.name}...`, "gold");
+        const cleanUrl = await compressAndUploadImage(file);
+        if (cleanUrl) {
+          newImages.push(cleanUrl);
+          updateFormData({ images: [...newImages] });
+        } else {
+          showNotification(`Failed to upload ${file.name}`, "gold");
+        }
+      }
+      setUploading(false);
     } else {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateFormData({ [field]: reader.result as string });
-      };
-      reader.readAsDataURL(files[0]);
+      const file: File = files[0];
+      showNotification(`Uploading ${file.name}...`, "gold");
+      const cleanUrl = await compressAndUploadImage(file);
+      if (cleanUrl) {
+        updateFormData({ [field]: cleanUrl });
+        showNotification("File uploaded successfully!", "gold");
+        if (field === 'epcCertificate') {
+          setStep(4);
+        }
+      } else {
+        showNotification(`Failed to upload ${file.name}`, "gold");
+      }
+      setUploading(false);
     }
-    
-    setTimeout(() => setUploading(false), 800);
   };
 
   const reorderImage = (index: number, direction: 'left' | 'right') => {
@@ -827,7 +925,7 @@ export default function AddProperty() {
                       <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black shadow-2xl group">
                         <AnimatePresence mode="wait">
                           <motion.img 
-                            key={formData.images[activeImageIndex]}
+                            key={`carousel-image-${activeImageIndex}-${formData.images[activeImageIndex]?.slice(-40) || 'placeholder'}`}
                             src={formData.images[activeImageIndex]}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -871,18 +969,21 @@ export default function AddProperty() {
                       </div>
 
                       <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4">
-                        {formData.images.map((img, i) => (
-                          <button 
-                            key={i}
-                            onClick={() => setActiveImageIndex(i)}
-                            className={cn(
-                              "aspect-square rounded-2xl overflow-hidden border-2 transition-all relative group",
-                              activeImageIndex === i ? "border-accent scale-110 shadow-xl z-10" : "border-transparent opacity-50 hover:opacity-100"
-                            )}
-                          >
-                            <img src={img} className="w-full h-full object-cover" />
-                          </button>
-                        ))}
+                        {formData.images.map((img, i) => {
+                          const uniqueImageKey = `uploaded-media-${img.slice(-40) || 'file'}-${i}`;
+                          return (
+                            <button 
+                              key={uniqueImageKey}
+                              onClick={() => setActiveImageIndex(i)}
+                              className={cn(
+                                "aspect-square rounded-2xl overflow-hidden border-2 transition-all relative group",
+                                activeImageIndex === i ? "border-accent scale-110 shadow-xl z-10" : "border-transparent opacity-50 hover:opacity-100"
+                              )}
+                            >
+                              <img src={img} className="w-full h-full object-cover" />
+                            </button>
+                          );
+                        })}
                         {formData.images.length < 20 && (
                           <button 
                             onClick={() => document.getElementById('gallery-upload')?.click()}
@@ -907,7 +1008,7 @@ export default function AddProperty() {
   const isNextDisabled = () => {
     if (step === 1 && (!formData.title.trim() || !formData.location.trim())) return true;
     if (step === 2 && formData.description.length < 50) return true;
-    if (step === 3 && !formData.epcCertificate) return true;
+    if (step === 3 && (uploading || !formData.epcCertificate)) return true;
     if (step === 4 && !formData.monthlyRent) return true;
     if (step === 5 && !formData.noImage && formData.images.length === 0) return true;
     if (step === 5 && !user?.emailVerified) return true;

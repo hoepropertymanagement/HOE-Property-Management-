@@ -108,8 +108,8 @@ service cloud.firestore {
     function isValidProperty(data) {
       let requiredFields = ['title', 'price', 'status', 'landlordId', 'createdAt', 'updatedAt'];
       return data.keys().hasAll(requiredFields) &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             data.price is number && data.price >= 0 &&
+             data.title is string && data.title.size() > 0 &&
+             (data.price is string || (data.price is number && data.price >= 0)) &&
              data.status in ['Live', 'Draft', 'Let Agreed', 'Paused', 'Archived'] &&
              (request.auth == null || data.landlordId == request.auth.uid) &&
              data.createdAt is timestamp &&
@@ -133,6 +133,12 @@ service cloud.firestore {
                     incoming().createdAt == existing().createdAt &&
                     incoming().updatedAt == request.time;
       allow delete: if (request.auth == null || resource.data.landlordId == request.auth.uid);
+    }
+
+    // --- Property Views Rules ---
+    match /propertyViews/{viewId} {
+      allow create: if true;
+      allow read, list: if true; // Allowed so landlords can fetch their own property views
     }
 
     // --- Verification Rules (Server-only typically, but rules added for defense in depth) ---

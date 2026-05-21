@@ -30,9 +30,91 @@ export default function AuthPage() {
   const [authStep, setAuthStep] = useState<'credentials' | 'verify-email' | 'verify-phone'>('credentials');
   const [countdown, setCountdown] = useState(0);
   
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
+  
   const { loginWithGoogle, user, updateProfile } = useAuth();
   const { showNotification } = useNotification();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isRecoveryParam = params.get('type') === 'recovery';
+    const hash = window.location.hash;
+    const isRecoveryHash = hash.includes('type=recovery') || hash.includes('type=password_reset');
+
+    if (isRecoveryParam || isRecoveryHash) {
+      setIsResettingPassword(true);
+      setIsLogin(true);
+      setShowForgotPassword(false);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResettingPassword(true);
+        setIsLogin(true);
+        setShowForgotPassword(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin + '/auth?type=recovery'
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setResetSuccess(true);
+      showNotification("Reset link sent successfully to your email!", "gold");
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      showNotification("Password changed successfully! You can now log in.", "gold");
+      setIsResettingPassword(false);
+      setIsLogin(true);
+      setPassword('');
+      setConfirmPassword('');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCloseVerifyModal = () => {
     setShowVerifyModal(false);
@@ -295,6 +377,190 @@ export default function AuthPage() {
     </div>
   );
 
+  const renderForgotPassword = () => (
+    <div className="space-y-6">
+      <div className="text-center mb-10 pb-4 border-b border-white/5">
+        <h1 className="text-3xl font-serif italic text-white mb-0 uppercase tracking-widest font-bold">
+          Password Recovery
+        </h1>
+        <p className="text-[10px] text-accent font-extrabold mt-2 uppercase tracking-[0.3em] italic">
+          House of Eden
+        </p>
+      </div>
+
+      <p className="text-white/60 text-[11px] leading-relaxed uppercase tracking-[0.05em] text-center mb-6">
+        Enter your registered email address below, and we'll send you a secure link to reset your account password.
+      </p>
+
+      {error && (
+        <div className="mb-6 bg-red-500/10 border-l-4 border-red-500 p-4 flex items-start gap-3 rounded-r-xl">
+          <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-white text-[10px] font-bold">!</span>
+          </div>
+          <p className="text-red-400 text-[10px] font-bold uppercase tracking-wider leading-relaxed">{error}</p>
+        </div>
+      )}
+
+      {resetSuccess ? (
+        <div className="space-y-6 text-center">
+          <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent/30">
+            <span className="text-accent text-[1.4rem]">✉️</span>
+          </div>
+          <p className="text-accent text-sm font-bold uppercase tracking-wider">
+            Reset Link Sent!
+          </p>
+          <p className="text-white/60 text-[11px] leading-relaxed uppercase tracking-[0.05em]">
+            Please check your email inbox for the recovery link to create a new password.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(false);
+              setResetSuccess(false);
+              setError('');
+            }}
+            className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+          >
+            Return to Sign In
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] ml-1">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent/30" />
+              <input
+                type="email"
+                placeholder="Enter your email"
+                required
+                className="w-full bg-[#0c0214]/60 border border-accent/20 rounded-xl py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-accent transition-all placeholder:text-white/10"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-2 border border-accent/40 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Reset Password'}
+            {!loading && <ArrowRight className="w-4 h-4" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(false);
+              setError('');
+            }}
+            className="w-full text-[10px] font-black uppercase tracking-[0.2em] text-white/20 hover:text-accent transition-colors"
+          >
+            Back to Entry
+          </button>
+        </form>
+      )}
+    </div>
+  );
+
+  const renderResetPassword = () => (
+    <div className="space-y-6">
+      <div className="text-center mb-10 pb-4 border-b border-white/5">
+        <h1 className="text-3xl font-serif italic text-white mb-0 uppercase tracking-widest font-bold">
+          Create New Password
+        </h1>
+        <p className="text-[10px] text-accent font-extrabold mt-2 uppercase tracking-[0.3em] italic">
+          House of Eden
+        </p>
+      </div>
+
+      <p className="text-white/60 text-[11px] leading-relaxed uppercase tracking-[0.05em] text-center mb-6">
+        Please specify your new secure password. It must be at least 8 characters long.
+      </p>
+
+      {error && (
+        <div className="mb-6 bg-red-500/10 border-l-4 border-red-500 p-4 flex items-start gap-3 rounded-r-xl">
+          <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span className="text-white text-[10px] font-bold">!</span>
+          </div>
+          <p className="text-red-400 text-[10px] font-bold uppercase tracking-wider leading-relaxed">{error}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleResetPasswordSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <label className="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] ml-1">New Password</label>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent/30" />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter new password"
+              required
+              minLength={8}
+              className="w-full bg-[#0c0214]/60 border border-accent/20 rounded-xl py-4 pl-12 pr-12 text-white text-sm outline-none focus:border-accent transition-all placeholder:text-white/10"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-accent/30 hover:text-accent transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] ml-1">Confirm Password</label>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent/30" />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Repeat new password"
+              required
+              minLength={8}
+              className="w-full bg-[#0c0214]/60 border border-accent/20 rounded-xl py-4 pl-12 pr-12 text-white text-sm outline-none focus:border-accent transition-all placeholder:text-white/10"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-accent/30 hover:text-accent transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-2 border border-accent/40 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+        >
+          {loading ? 'Processing...' : 'Confirm New Password'}
+          {!loading && <ArrowRight className="w-4 h-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsResettingPassword(false);
+            setIsLogin(true);
+            setError('');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }}
+          className="w-full text-[10px] font-black uppercase tracking-[0.2em] text-white/20 hover:text-accent transition-colors"
+        >
+          Cancel
+        </button>
+      </form>
+    </div>
+  );
+
   return (
     <div className="min-h-[calc(100vh-80px)] bg-primary flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -316,7 +582,11 @@ export default function AuthPage() {
           </motion.div>
         )}
 
-        {authStep !== 'credentials' ? (
+        {isResettingPassword ? (
+          renderResetPassword()
+        ) : showForgotPassword ? (
+          renderForgotPassword()
+        ) : authStep !== 'credentials' ? (
           renderVerification(authStep === 'verify-email' ? 'email' : 'phone')
         ) : (!isLogin && signupStep === 0) ? (
           renderRoleSelection()
@@ -394,6 +664,20 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {isLogin && (
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError('');
+                      }}
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-accent/60 hover:text-accent transition-colors cursor-pointer"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
               </div>
 
               {!isLogin && (

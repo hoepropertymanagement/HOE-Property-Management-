@@ -13,68 +13,63 @@ export default function LogoutModal({ isOpen, onClose, onConfirm }: LogoutModalP
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
-          {/* Backdrop */}
+          {/* Backdrop with elegant blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-primary/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-primary/45 backdrop-blur-[4px]"
           />
 
-          {/* Modal */}
+          {/* Modal - Compact Rectangle Bar style */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-primary/5"
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-primary/5 p-6 md:p-8 z-10 flex flex-col gap-5 overflow-hidden"
           >
-            {/* Header with Pattern */}
-            <div className="h-32 bg-secondary relative overflow-hidden flex items-center justify-center">
-              <div className="absolute inset-0 opacity-5">
-                <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, var(--color-primary) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-              </div>
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center relative z-10">
-                <LogOut className="w-8 h-8 text-red-500" />
+            {/* Minimal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0">
+                  <LogOut className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-serif italic text-primary font-bold">Sign Out</h3>
+                  <p className="text-[9px] text-[#D4AF37] font-extrabold uppercase tracking-widest leading-none mt-1">
+                    House of Eden
+                  </p>
+                </div>
               </div>
               <button 
                 onClick={onClose}
-                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-primary/40 hover:text-primary transition-all hover:rotate-90"
+                className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-primary/40 hover:text-primary transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-10 text-center">
-              <h3 className="text-2xl font-serif italic text-primary mb-4">Are you sure?</h3>
-              <p className="text-[11px] text-primary/40 font-black uppercase tracking-[0.3em] leading-relaxed mb-10 max-w-xs mx-auto">
-                You are about to sign out of your HOE account. You will have to relogin to access your dashboard.
-              </p>
+            {/* Quick Warning/Help Text */}
+            <p className="text-[11px] text-primary/50 font-medium leading-relaxed">
+              Are you sure you want to log out? Any unsaved changes may be lost, and you'll need to sign back in to access your portal.
+            </p>
 
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={onConfirm}
-                  className="w-full py-5 bg-red-500 text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-red-600 transition-all shadow-xl shadow-red-500/20 active:scale-[0.98]"
-                >
-                  Yes, Log Me Out
-                </button>
-                <button
-                  onClick={onClose}
-                  className="w-full py-5 bg-primary/5 text-primary/60 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-primary/10 transition-all active:scale-[0.98]"
-                >
-                  No, Keep Me Logged In
-                </button>
-              </div>
-            </div>
-
-            {/* Warning Footer */}
-            <div className="bg-red-50 p-6 flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-              </div>
-              <p className="text-[9px] text-red-800 font-bold uppercase tracking-widest leading-relaxed">
-                Any unsaved listing progress or draft changes might be lost.
-              </p>
+            {/* Side-by-Side Horizontal Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button
+                onClick={onClose}
+                className="py-3 px-4 bg-secondary text-primary/70 hover:bg-primary/5 hover:text-primary rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all cursor-pointer text-center shadow-md shadow-red-500/10 active:scale-[0.98]"
+              >
+                Confirm
+              </button>
             </div>
           </motion.div>
         </div>

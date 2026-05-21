@@ -61,7 +61,7 @@
       "type": "object",
       "properties": {
         "title": { "type": "string" },
-        "price": { "type": "number" },
+        "price": { "type": "string", "description": "Formatted price display (e.g. £1,250 pcm) or numeric value." },
         "location": { "type": "string" },
         "bedrooms": { "type": "number" },
         "bathrooms": { "type": "number" },

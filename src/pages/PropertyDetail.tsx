@@ -41,7 +41,23 @@ export default function PropertyDetail() {
         const docRef = doc(db, 'properties', id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setProperty({ id: docSnap.id, ...docSnap.data() } as Property);
+          const propData = { id: docSnap.id, ...docSnap.data() } as Property;
+          setProperty(propData);
+
+          // Record a real-time property view event
+          if (propData.landlordId) {
+            try {
+              const { collection, addDoc } = await import('firebase/firestore');
+              await addDoc(collection(db, 'propertyViews'), {
+                propertyId: id,
+                propertyTitle: propData.title || 'Untitled Property',
+                landlordId: propData.landlordId,
+                timestamp: new Date().toISOString()
+              });
+            } catch (viewError) {
+              console.error("Silent view log failed:", viewError);
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching property:", error);

@@ -14,12 +14,13 @@ import {
 } from 'lucide-react';
 import { Property } from '../constants/mockData';
 import { cn } from '../lib/utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 export default function ManageProperties() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,14 +184,21 @@ export default function ManageProperties() {
                         <p className="text-[10px] text-primary/30 uppercase font-bold tracking-tighter">PCM</p>
                       </td>
                       <td className="px-8 py-6">
-                        <span className={cn(
-                          "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit shadow-sm",
-                          p.status === 'Live' ? "bg-green-50 text-green-600 border border-green-100" :
-                          p.status === 'Let Agreed' ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : 
-                          p.status === 'Paused' ? "bg-orange-50 text-orange-600 border border-orange-100" :
-                          p.status === 'Archived' ? "bg-red-50 text-red-600 border border-red-100" :
-                          "bg-amber-50 text-amber-600 border border-amber-200" // Draft
-                        )}>
+                        <span 
+                          onClick={() => {
+                            if (p.status === 'Draft') {
+                              navigate(`/dashboard/landlord/add?id=${p.id}`);
+                            }
+                          }}
+                          className={cn(
+                            "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit shadow-sm border transition-all duration-300 select-none",
+                            p.status === 'Live' ? "bg-green-50 text-green-600 border-green-100" :
+                            p.status === 'Let Agreed' ? "bg-indigo-50 text-indigo-600 border-indigo-100" : 
+                            p.status === 'Paused' ? "bg-orange-50 text-orange-600 border-orange-100" :
+                            p.status === 'Archived' ? "bg-red-50 text-red-600 border-red-100" :
+                            "bg-amber-50 text-amber-700 border-amber-200 cursor-pointer hover:bg-black hover:text-accent hover:border-accent active:scale-95 shadow-md hover:shadow-accent/10" // Draft
+                          )}
+                        >
                           {p.status === 'Live' ? <CheckCircle2 className="w-3.5 h-3.5" /> : 
                            p.status === 'Let Agreed' ? <Clock className="w-3.5 h-3.5" /> : 
                            p.status === 'Draft' ? <Edit className="w-3.5 h-3.5" /> :
