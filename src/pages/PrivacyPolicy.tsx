@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Lock, Eye, Database } from 'lucide-react';
+import DataProtectionInfo from '../components/DataProtectionInfo';
 
 export default function PrivacyPolicy() {
   return (
@@ -13,6 +14,11 @@ export default function PrivacyPolicy() {
           <h1 className="text-5xl font-serif italic text-primary mb-4">Privacy Policy</h1>
           <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em]">Guardian of Your Data • 2026</p>
         </header>
+
+        {/* Custom Data Protection Information Component */}
+        <div className="mb-12">
+          <DataProtectionInfo />
+        </div>
 
         <div className="bg-white p-12 md:p-16 rounded-[4rem] shadow-2xl shadow-primary/5 space-y-12 text-primary border border-primary/5">
           <section className="space-y-4">

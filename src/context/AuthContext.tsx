@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signOut } from '../lib/firebase';
+import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { FirebaseUser } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
@@ -40,6 +40,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
     let isSupabasePrimary = false;
+
+    // Handle redirect result for Google Login
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          console.log("Successfully signed in with Google redirect:", result.user);
+        }
+      })
+      .catch((err) => {
+        console.error("Firebase redirect login error:", err);
+      });
 
     // Listen to Firebase Auth
     const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -175,8 +186,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Google login error:", error);
+    } catch (error: any) {
+      console.warn("Popup blocked or closed by user, attempting redirect login:", error);
+      
+      const popupClosedOrBlocked = 
+        error?.code === 'auth/popup-closed-by-user' || 
+        error?.code === 'auth/popup-blocked' || 
+        error?.code === 'auth/cancelled-popup-request' ||
+        error?.message?.includes('popup-closed-by-user') ||
+        error?.message?.includes('popup-blocked');
+
+      if (popupClosedOrBlocked) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          console.error("Redirect login error:", redirectError);
+          throw redirectError;
+        }
+      }
       throw error;
     }
   };

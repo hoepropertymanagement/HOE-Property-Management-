@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
   Bed, Bath, Move, MapPin, Share2, Heart, 
-  ChevronLeft, Info, Calendar, Phone, Mail,
+  ChevronLeft, ChevronRight, Info, Calendar, Phone, Mail,
   CheckCircle2, Ruler, Home, MessageSquare, Loader2,
   FileText, Download
 } from 'lucide-react';
@@ -14,13 +14,17 @@ import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { Property } from '../constants/mockData';
+import { useNotification } from '../context/NotificationContext';
 
 export default function PropertyDetail() {
   const { id } = useParams();
   const [property, setProperty] = useState<Property | null>(null);
+  const [landlord, setLandlord] = useState<any | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const { isSaved, toggleSave } = useSavedProperties();
   const { user } = useAuth();
+  const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [isMessaging, setIsMessaging] = useState(false);
 
@@ -33,6 +37,35 @@ export default function PropertyDetail() {
     return `${url}${separator}v=${cacheBuster}`;
   };
 
+  // Compile images list for the Carousel viewer
+  const carouselImages = useMemo(() => {
+    if (!property) return [];
+    const imagesList: string[] = [];
+    if (property.image) {
+      imagesList.push(prepUrl(property.image));
+    }
+    if (property.images && Array.isArray(property.images)) {
+      property.images.forEach((img: string) => {
+        const u = prepUrl(img);
+        if (u && !imagesList.includes(u)) {
+          imagesList.push(u);
+        }
+      });
+    }
+    return imagesList;
+  }, [property, prepUrl]);
+
+  // Landlord public contact copy to clipboard functionality
+  const handleCopy = async (text: string, type: 'email' | 'phone') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotification(`${type === 'email' ? 'Email address' : 'Phone number'} copied to clipboard!`, 'gold');
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+      showNotification("Failed to copy. Please try selecting the text manually.", "red");
+    }
+  };
+
   useEffect(() => {
     async function fetchProperty() {
       if (!id) return;
@@ -43,6 +76,19 @@ export default function PropertyDetail() {
         if (docSnap.exists()) {
           const propData = { id: docSnap.id, ...docSnap.data() } as Property;
           setProperty(propData);
+
+          // Fetch landowner profile
+          if (propData.landlordId) {
+            try {
+              const landlordRef = doc(db, 'users', propData.landlordId);
+              const landlordSnap = await getDoc(landlordRef);
+              if (landlordSnap.exists()) {
+                setLandlord(landlordSnap.data());
+              }
+            } catch (landlordError) {
+              console.warn("Silent landlord fetch failed:", landlordError);
+            }
+          }
 
           // Record a real-time property view event
           if (propData.landlordId) {
@@ -162,77 +208,106 @@ export default function PropertyDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Image Gallery */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="md:col-span-3 aspect-[16/9] rounded-[2rem] overflow-hidden group shadow-2xl shadow-primary/10 relative"
-          >
-            {property.image ? (
-              <img src={prepUrl(property.image)} alt={property.title} className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-secondary">
-                 <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                   <Home className="w-8 h-8 text-primary/10" />
-                 </div>
-                 <span className="text-primary/30 font-bold uppercase tracking-[0.2em] text-xs">No Image Available</span>
-              </div>
-            )}
+        {/* Image Carousel: Interactive viewer with left/right arrows */}
+        <div className="relative aspect-[16/9] md:aspect-[21/9] w-full rounded-[2.5rem] overflow-hidden group/carousel shadow-2xl mb-12 bg-[#F5F5F0] border border-primary/5">
+          {carouselImages.length > 0 ? (
+            <div className="w-full h-full relative">
+              {/* Active Image */}
+              <img 
+                src={carouselImages[carouselIndex]} 
+                alt={`${property.title} - View ${carouselIndex + 1}`} 
+                className="w-full h-full object-cover transition-all duration-700 select-none animate-fade-in"
+              />
 
-            {/* EPC Overlays on Image */}
-            <div className="absolute top-6 right-6 flex flex-col gap-2 z-10">
-              {property.epcEE && (
-                <div className="flex flex-col items-center group/epc pointer-events-auto">
+              {/* Gradient overlay for text reading */}
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
+
+              {/* Left/Right Arrows */}
+              {carouselImages.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setCarouselIndex((prev) => (prev - 1 + carouselImages.length) % carouselImages.length)}
+                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
+                    aria-label="Previous view"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button 
+                    onClick={() => setCarouselIndex((prev) => (prev + 1) % carouselImages.length)}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
+                    aria-label="Next view"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </>
+              )}
+
+              {/* Carousel Dots Indicators */}
+              {carouselImages.length > 1 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                  {carouselImages.map((_, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => setCarouselIndex(idx)}
+                      className={cn(
+                        "w-2.5 h-2.5 rounded-full transition-all duration-300 border-0 p-0 cursor-pointer",
+                        carouselIndex === idx ? "bg-accent scale-110 w-6" : "bg-white/50 hover:bg-white"
+                      )}
+                      aria-label={`Go to slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Number/Count Indicator */}
+              <div className="absolute top-6 left-6 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-4 py-2 rounded-xl uppercase tracking-widest border border-white/10 select-none">
+                View {carouselIndex + 1} of {carouselImages.length}
+              </div>
+
+              {/* EPC Badges */}
+              <div className="absolute top-6 right-6 flex gap-2 z-10">
+                {property.epcEE && (
                   <div className={cn(
-                    "w-12 h-12 flex flex-col items-center justify-center text-white font-black rounded-2xl text-lg shadow-2xl border-2 border-white/20 backdrop-blur-md transition-all group-hover/epc:scale-110",
+                    "w-10 h-10 flex flex-col items-center justify-center text-white font-black rounded-xl text-sm shadow-xl border border-white/20 select-none",
                     property.epcEE === 'A' ? "bg-green-600/90" : 
                     property.epcEE === 'B' ? "bg-green-500/90" :
                     property.epcEE === 'C' ? "bg-lime-500/90" :
                     property.epcEE === 'D' ? "bg-yellow-500/90" : "bg-orange-500/90"
                   )}>
-                    <span className="text-[7px] uppercase tracking-tighter opacity-70 absolute top-1">EE</span>
+                    <span className="text-[6px] uppercase tracking-tighter opacity-75">EE</span>
                     {property.epcEE}
                   </div>
-                </div>
-              )}
-              {property.epcEI && (
-                <div className="flex flex-col items-center group/epc pointer-events-auto">
+                )}
+                {property.epcEI && (
                   <div className={cn(
-                    "w-12 h-12 flex flex-col items-center justify-center text-white font-black rounded-2xl text-lg shadow-2xl border-2 border-white/20 backdrop-blur-md transition-all group-hover/epc:scale-110",
+                    "w-10 h-10 flex flex-col items-center justify-center text-white font-black rounded-xl text-sm shadow-xl border border-white/20 select-none",
                     property.epcEI === 'A' ? "bg-green-600/90" : 
                     property.epcEI === 'B' ? "bg-green-500/90" :
                     property.epcEI === 'C' ? "bg-lime-500/90" :
                     property.epcEI === 'D' ? "bg-yellow-500/90" : "bg-orange-500/90"
                   )}>
-                    <span className="text-[7px] uppercase tracking-tighter opacity-70 absolute top-1">EI</span>
+                    <span className="text-[6px] uppercase tracking-tighter opacity-75">EI</span>
                     {property.epcEI}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </motion.div>
-          <div className="hidden md:flex flex-col gap-4">
-            <div className="flex-grow rounded-[1.5rem] overflow-hidden">
-              <img 
-                src={property.images && property.images[1] ? prepUrl(property.images[1]) : (property.image ? prepUrl(property.image) : "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=600")} 
-                className="w-full h-full object-cover" 
-                alt="Detail 1" 
-              />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center relative p-8 bg-white border border-primary/5">
+              <div className="absolute inset-0 opacity-[0.03] flex items-center justify-center overflow-hidden pointer-events-none">
+                 <Home className="w-64 h-64 rotate-12" />
+              </div>
+              <div className="w-20 h-20 rounded-3xl bg-secondary flex items-center justify-center mb-6 relative">
+                <Home className="w-10 h-10 text-primary/10" />
+              </div>
+              <div className="text-center">
+                <h4 className="text-primary/60 font-serif italic text-xl mb-1 font-bold uppercase tracking-tighter">No Images Available</h4>
+                <p className="text-primary/30 text-[10px] font-bold uppercase tracking-[0.2em] max-w-[180px] leading-relaxed mx-auto">
+                  A visual audit of this premium property is currently pending
+                </p>
+              </div>
             </div>
-            <div className="flex-grow rounded-[1.5rem] overflow-hidden relative group cursor-pointer">
-              <img 
-                src={property.images && property.images[2] ? prepUrl(property.images[2]) : (property.image ? prepUrl(property.image) : "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&q=80&w=600")} 
-                className="w-full h-full object-cover" 
-                alt="Detail 2" 
-              />
-              {property.images && property.images.length > 3 && (
-                <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                  <span className="text-secondary font-medium">+{property.images.length - 3} Photos</span>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Top Feature Bar - Monthly Rent at Top */}
@@ -389,9 +464,9 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
-              <div className="mb-12">
-                <h3 className="text-2xl font-serif italic mb-6">Floor Plan</h3>
-                {property.floorplan ? (
+              {property.floorplan ? (
+                <div className="mb-12">
+                  <h3 className="text-2xl font-serif italic mb-6">Floor Plan</h3>
                   <div className="bg-white rounded-[2rem] border border-primary/5 shadow-xl overflow-hidden group">
                     <img src={prepUrl(property.floorplan)} className="w-full h-auto" alt="Floor Plan" />
                     <div className="p-6 bg-primary/5 flex items-center justify-between">
@@ -399,21 +474,13 @@ export default function PropertyDetail() {
                         <Ruler className="w-5 h-5 text-accent" />
                         <span className="text-sm font-bold text-primary">Technical Floor Plan</span>
                       </div>
-                      <a href={prepUrl(property.floorplan)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
+                      <a href={prepUrl(property.floorplan)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
                         <Download className="w-4 h-4" /> View Full Scale
                       </a>
                     </div>
                   </div>
-                ) : (
-                  <div className="aspect-video bg-white rounded-[2rem] border-2 border-dashed border-primary/10 flex items-center justify-center relative group overflow-hidden">
-                     <img src="https://images.unsplash.com/photo-1541888941255-2ff4354c46f1?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-20 grayscale" alt="Floor Plan" />
-                     <div className="absolute flex flex-col items-center gap-4">
-                       <Ruler className="w-12 h-12 text-primary/20" />
-                       <span className="text-primary/30 uppercase tracking-widest font-bold text-[10px]">No Floor Plan Provided</span>
-                     </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : null}
 
               {/* EPC Certificate Display */}
               <div className="mb-12">
@@ -446,35 +513,57 @@ export default function PropertyDetail() {
             </div>
           </div>
 
-          {/* Contact Bar - Simplified since rent moved to top */}
+          {/* Landlord Card - Displays Landlord profile with public contact details & copy-to-clipboard */}
           <div className="lg:col-start-3">
             <div className="sticky top-40 bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-accent">
-                  <img src="https://i.pravatar.cc/150?u=hoe1" alt="Agent" className="w-full h-full object-cover" />
+                <div className="w-14 h-14 rounded-full bg-accent/10 border-2 border-accent flex items-center justify-center text-accent uppercase font-serif text-lg font-bold">
+                  {(landlord?.username || landlord?.name || property.landlordName || 'L').charAt(0)}
                 </div>
                 <div>
-                  <h4 className="font-serif italic text-lg leading-tight text-primary">Alistair Eden</h4>
-                  <p className="text-primary/50 text-xs">Senior Property Consultant</p>
+                  <h4 className="font-serif italic text-lg leading-tight text-primary">
+                    {landlord?.username || landlord?.name || property.landlordName || 'Verified Landlord'}
+                  </h4>
+                  <p className="text-primary/50 text-xs">
+                    {landlord?.role || 'Private Landlord'}
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-3 mb-10">
-                <div className="flex items-center gap-3 text-primary/70 text-sm font-medium">
-                  <Phone className="w-4 h-4 text-accent" />
-                  {property.id === '7' ? (
-                    <span className="italic">Contact via Internal Chat</span>
-                  ) : (
-                    <span>+44 (0) 20 7123 4567</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-primary/70 text-sm font-medium">
-                  <Mail className="w-4 h-4 text-accent" />
-                  <span>a.eden@hoe-estate.com</span>
-                </div>
-                <div className="flex items-center gap-3 text-primary/70 text-sm font-medium">
+                {/* Email (Conditional on landlord.showEmail) */}
+                {landlord?.showEmail && landlord?.email ? (
+                  <div 
+                    onClick={() => handleCopy(landlord.email, 'email')}
+                    className="flex items-center justify-between gap-3 p-3 bg-secondary hover:bg-accent/5 rounded-xl border border-primary/5 cursor-pointer transition-all group"
+                    title="Click to copy email"
+                  >
+                    <div className="flex items-center gap-3 text-primary/70 text-sm font-medium overflow-hidden">
+                      <Mail className="w-4 h-4 text-accent shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="truncate">{landlord.email}</span>
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-accent shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">Copy</span>
+                  </div>
+                ) : null}
+
+                {/* Phone (Conditional on landlord.showPhoneNumber) */}
+                {landlord?.showPhoneNumber && (landlord?.phoneNumber || property.contactNumber) ? (
+                  <div 
+                    onClick={() => handleCopy(landlord?.phoneNumber || property.contactNumber, 'phone')}
+                    className="flex items-center justify-between gap-3 p-3 bg-secondary hover:bg-accent/5 rounded-xl border border-primary/5 cursor-pointer transition-all group"
+                    title="Click to copy phone"
+                  >
+                    <div className="flex items-center gap-3 text-primary/70 text-sm font-medium overflow-hidden">
+                      <Phone className="w-4 h-4 text-accent shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="truncate">{landlord?.phoneNumber || property.contactNumber}</span>
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-accent shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">Copy</span>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center gap-3 p-3 text-primary/70 text-sm font-medium">
                   <Info className="w-4 h-4 text-accent" />
-                  Reference: HOE-29402
+                  <span>Ref: {property.referenceNumber || property.encodedUniqueNumber}</span>
                 </div>
               </div>
 
@@ -495,7 +584,7 @@ export default function PropertyDetail() {
                   onClick={handleMessageLandlord}
                   disabled={isMessaging}
                   className="w-full py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
+                 >
                   {isMessaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                   Chat with Owner
                 </button>

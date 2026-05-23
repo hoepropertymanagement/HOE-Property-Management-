@@ -33,14 +33,10 @@ export default function Home() {
         setFeaturedProperties(props);
       } catch (err: any) {
         if (err.code === 'permission-denied') {
-          throw new Error(JSON.stringify({
-            title: "Permission Denied",
-            message: "Unable to access featured properties. Please ensure the Firestore security rules allow public reading of live properties.",
-            action: "Check firestore.rules for properties collection",
-            code: "PERMISSION_DENIED"
-          }));
+          console.error("Permission Denied: Unable to access featured properties. Please ensure the Firestore security rules allow public reading of live properties.");
+        } else {
+          console.error("Error fetching featured properties:", err);
         }
-        console.error("Error fetching featured properties:", err);
       } finally {
         setLoadingFeatured(false);
       }

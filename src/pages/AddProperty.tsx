@@ -22,6 +22,7 @@ import { storage as firebaseStorage } from '../lib/firebase';
 import { ref as firebaseStorageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import IdentityVerification from '../components/IdentityVerification';
+import LocationSearch from '../components/LocationSearch';
 
 export default function AddProperty() {
   const { profile, user } = useAuth();
@@ -31,6 +32,8 @@ export default function AddProperty() {
     title: '',
     type: 'Apartment',
     location: '',
+    lat: 51.7619,
+    lng: -0.2285,
     bedrooms: '1',
     bathrooms: '1',
     encodedUniqueNumber: '',
@@ -90,6 +93,8 @@ export default function AddProperty() {
             title: data.title || '',
             type: data.type || 'Apartment',
             location: data.location || '',
+            lat: data.lat || 51.7619,
+            lng: data.lng || -0.2285,
             bedrooms: data.bedrooms ? String(data.bedrooms) : '1',
             bathrooms: data.bathrooms ? String(data.bathrooms) : '1',
             encodedUniqueNumber: data.encodedUniqueNumber || data.referenceNumber || '',
@@ -338,6 +343,8 @@ export default function AddProperty() {
         title: formData.title || 'HOE Premium Listing',
         type: formData.type,
         location: formData.location || 'Hatfield',
+        lat: formData.lat || 51.7619,
+        lng: formData.lng || -0.2285,
         bedrooms: parseInt(formData.bedrooms) || 1,
         bathrooms: parseInt(formData.bathrooms) || 1,
         encodedUniqueNumber: finalUniqueRef,
@@ -415,6 +422,8 @@ export default function AddProperty() {
         title: formData.title || 'Untitled Property Draft',
         type: formData.type,
         location: formData.location || '',
+        lat: formData.lat || 51.7619,
+        lng: formData.lng || -0.2285,
         bedrooms: parseInt(formData.bedrooms) || 1,
         bathrooms: parseInt(formData.bathrooms) || 1,
         encodedUniqueNumber: finalUniqueRef,
@@ -506,13 +515,17 @@ export default function AddProperty() {
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Primary Location (UK Town/District) *</label>
-                  <input 
-                    type="text"
-                    required
+                  <LocationSearch
                     value={formData.location}
-                    onChange={(e) => updateFormData({ location: e.target.value })}
+                    onChange={(val) => updateFormData({ location: val })}
+                    onSelect={(data) => {
+                      updateFormData({
+                        location: data.description,
+                        lat: data.location?.lat || 51.7619,
+                        lng: data.location?.lng || -0.2285
+                      });
+                    }}
                     placeholder="e.g. Hatfield or South Hatfield"
-                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
                   />
                 </div>
               </div>

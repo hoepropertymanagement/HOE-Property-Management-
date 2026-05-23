@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { ShieldCheck, Scale, FileCheck, UserCheck, AlertOctagon, ExternalLink } from 'lucide-react';
+import DataProtectionInfo from '../components/DataProtectionInfo';
 
 export default function Compliance() {
   const [logoError, setLogoError] = React.useState(false);
@@ -69,6 +70,11 @@ export default function Compliance() {
               <p>Policy: <strong className="text-secondary/80">CHBS5558206XB</strong></p>
             </div>
           </div>
+        </div>
+
+        {/* Custom Data Protection Information Component */}
+        <div className="mb-12">
+          <DataProtectionInfo />
         </div>
 
         {/* Detailed Sections */}

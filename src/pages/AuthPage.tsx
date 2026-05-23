@@ -276,11 +276,23 @@ export default function AuthPage() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError('');
     try {
       await loginWithGoogle();
       // Role handled in DashboardGateway if missing
     } catch (err: any) {
-      setError(err.message);
+      console.error("Popup login failed:", err);
+      const isPopupError = 
+        err?.code === 'auth/popup-closed-by-user' || 
+        err?.code === 'auth/popup-blocked' || 
+        err?.message?.includes('popup-closed-by-user') ||
+        err?.message?.includes('popup-blocked');
+
+      if (isPopupError) {
+        setError("Sign-in popup was blocked or closed. We are redirecting you to Google... You can also open the application in a new tab using the icon at the top right of the preview if iframe constraints persist.");
+      } else {
+        setError(err.message || "An error occurred during Google sign-in.");
+      }
     } finally {
       setLoading(false);
     }

@@ -175,10 +175,26 @@ async function startServer() {
 
   app.post("/api/enquiry", async (req, res) => {
     try {
-      const data = req.body;
-      
-      // Attempt silent routing to primary admin email using Google Apps Script
-      // Target: nkeface14@gmail.com
+      const data = req.body || {};
+      const name = data.name || data.Name || "Anonymous Sender";
+      const email = data.email || data.Email || "no-reply@eden.com";
+      const userSubject = data.subject || data.Subject || "General Enquiry";
+      const messageContent = data.message || data.Message || data.enquiryText || "No message content provided";
+      const originPage = data.Page || "Contact Form / Enquiry Page";
+
+      const subjectLine = `[HOE Enquiry] ${userSubject} - from ${name}`;
+      const emailBody = `New Inquiry Submitted on HOE Property Management\n` +
+                        `-----------------------------------------\n` +
+                        `Sender Name: ${name}\n` +
+                        `Sender Email: ${email}\n` +
+                        `Reason: ${userSubject}\n` +
+                        `Origin Page: ${originPage}\n\n` +
+                        `Message:\n` +
+                        `${messageContent}\n` +
+                        `-----------------------------------------\n` +
+                        `Received: ${new Date().toISOString()}`;
+
+      // Call Google Apps Script Bridge
       try {
         const scriptUrl = 'https://script.google.com/macros/s/AKfycbxH4u7RFVwn2fBFHiUzUyhQr2jISdGUBjxQ3hIb8j7TRkl20bLo4Pfpy6EkuZnrgXHM/exec';
         
@@ -187,7 +203,7 @@ async function startServer() {
           headers: { 
             "Content-Type": "application/x-www-form-urlencoded"
           },
-          body: `email=${encodeURIComponent("nkeface14@gmail.com")}&data=${encodeURIComponent(JSON.stringify(data))}`
+          body: `email=${encodeURIComponent(email)}&recipient=${encodeURIComponent("nkeface14@gmail.com")}&subject=${encodeURIComponent(subjectLine)}&message=${encodeURIComponent(emailBody)}`
         });
       } catch (relayError) {
         // Log the error but don't fail the request

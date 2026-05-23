@@ -191,14 +191,10 @@ export default function SearchResults() {
         setProperties(props);
       } catch (err: any) {
         if (err.code === 'permission-denied') {
-          throw new Error(JSON.stringify({
-            title: "Access Restricted",
-            message: "Your search query was blocked by security rules. Ensure you are only querying 'Live' properties or your own listings.",
-            action: "Verify search filters match security requirements",
-            code: "PERMISSION_DENIED"
-          }));
+          console.error("Access Restricted: Your search query was blocked by security rules. Ensure you are only querying 'Live' properties or your own listings.");
+        } else {
+          console.error("Error fetching properties:", err);
         }
-        console.error("Error fetching properties:", err);
       } finally {
         setIsLoading(false);
       }
@@ -209,11 +205,25 @@ export default function SearchResults() {
   const filteredProperties = useMemo(() => {
     let filtered = [...properties];
     
-    // Filter by radius from map center
-    filtered = filtered.filter(p => {
-      const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
-      return distance <= radius;
-    });
+    // Filter by radius from map center OR by text matching the location search term
+    const searchString = (activeSearch || query || '').toLowerCase().trim();
+    if (searchString) {
+      filtered = filtered.filter(p => {
+        const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
+        const matchesDistance = distance <= radius;
+        
+        const locMatch = p.location?.toLowerCase().includes(searchString) || 
+                         p.locationSearch?.toLowerCase().includes(searchString) ||
+                         p.title?.toLowerCase().includes(searchString);
+                         
+        return matchesDistance || locMatch;
+      });
+    } else {
+      filtered = filtered.filter(p => {
+        const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
+        return distance <= radius;
+      });
+    }
 
     if (minPrice) {
       filtered = filtered.filter(p => parseInt(p.price.replace(/[^\d]/g, '')) >= parseInt(minPrice));
@@ -256,7 +266,7 @@ export default function SearchResults() {
     if (preferences.retirement) filtered = filtered.filter(p => p.isRetirement);
 
     return filtered;
-  }, [mapCenter, radius, minPrice, maxPrice, minBeds, maxBeds, selectedType, minBaths, maxBaths, preferences]);
+  }, [mapCenter, radius, minPrice, maxPrice, minBeds, maxBeds, selectedType, minBaths, maxBaths, preferences, activeSearch, query]);
 
   useEffect(() => {
     if (activeSearch && filteredProperties.length === 0) {
