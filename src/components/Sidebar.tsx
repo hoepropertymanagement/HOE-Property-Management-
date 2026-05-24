@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Heart, MessageSquare, 
@@ -11,12 +11,41 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import LogoutModal from './LogoutModal';
 
+export function useSidebarCollapse() {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('hoe_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && typeof customEvent.detail.collapsed === 'boolean') {
+        setIsCollapsed(customEvent.detail.collapsed);
+      }
+    };
+    window.addEventListener('hoe-sidebar-toggle', handler);
+    return () => window.removeEventListener('hoe-sidebar-toggle', handler);
+  }, []);
+
+  return isCollapsed;
+}
+
 interface SidebarProps {
   type: 'tenant' | 'landlord';
 }
 
 export default function Sidebar({ type }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('hoe_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
   const { logout } = useAuth();
@@ -51,7 +80,14 @@ export default function Sidebar({ type }: SidebarProps) {
       >
         {/* Collapse Toggle - Tablet/Desktop Only */}
         <button 
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => {
+            const nextState = !isCollapsed;
+            setIsCollapsed(nextState);
+            try {
+              localStorage.setItem('hoe_sidebar_collapsed', String(nextState));
+            } catch {}
+            window.dispatchEvent(new CustomEvent('hoe-sidebar-toggle', { detail: { collapsed: nextState } }));
+          }}
           className="absolute -right-3 top-10 w-6 h-6 bg-primary text-accent rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform z-50 border border-accent/20"
         >
           {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}

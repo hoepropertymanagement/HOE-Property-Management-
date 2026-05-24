@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   Plus, MoreVertical, CheckCircle2, AlertCircle, Clock,
@@ -17,9 +17,11 @@ import { cn } from '../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 export default function ManageProperties() {
+  const isCollapsed = useSidebarCollapse();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
   const [properties, setProperties] = useState<Property[]>([]);
@@ -31,6 +33,7 @@ export default function ManageProperties() {
       if (!user) return;
       setLoading(true);
       try {
+        // Query from Firestore matching logged-in user explicitly
         const q = query(
           collection(db, 'properties'), 
           where('landlordId', '==', user.uid)
@@ -38,8 +41,46 @@ export default function ManageProperties() {
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         
-        // Merge with mock properties, dynamically assigning landlordId to current landlord
+        // Query from Supabase explicitly filtering to show only properties belonging to the signed-in user
+        let sbProps: Property[] = [];
+        try {
+          const { data: sbData, error: sbError } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('landlord_id', user.uid); // Ensure explicit filter to only show logged-in user's properties
+          
+          if (!sbError && sbData) {
+            sbProps = sbData.map((item: any) => ({
+              id: item.id,
+              title: item.title || item.name || 'Untitled Property',
+              description: item.description || '',
+              image: item.image || item.image_url || '',
+              images: item.images || [],
+              price: item.price || 0,
+              beds: item.beds || item.bedrooms || 0,
+              baths: item.baths || item.bathrooms || 0,
+              status: item.status || 'Draft',
+              landlordId: item.landlord_id || user.uid,
+              views: item.views || 0,
+              contactNumber: item.contact_number || '',
+              councilTax: item.council_tax || 'Band A',
+              energyEfficiency: item.energy_efficiency || 'E',
+              environmentalImpact: item.environmental_impact || 'E',
+            } as unknown as Property));
+          }
+        } catch (sbErr) {
+          console.warn("Silent Supabase fetch error:", sbErr);
+        }
+
+        // Merge both properties lists
         const merged = [...props];
+        sbProps.forEach(sbProp => {
+          if (!merged.some(p => p.id === sbProp.id)) {
+            merged.push(sbProp);
+          }
+        });
+
+        // Merge with mock properties, dynamically assigning landlordId to current landlord
         mockProperties.forEach(mockItem => {
           if (!merged.some(p => p.id === mockItem.id)) {
             merged.push({
@@ -97,7 +138,10 @@ export default function ManageProperties() {
     <div className="bg-secondary min-h-screen">
       <Sidebar type="landlord" />
       
-      <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+      <div className={cn(
+        "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="max-w-7xl mx-auto">
           <header className="flex flex-col gap-4 mb-12">
             <Link 

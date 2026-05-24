@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   MessageSquare, Search, Filter, MoreVertical, 
   Send, Phone, Video, Info, ArrowLeft, 
   CheckCheck, Clock, Paperclip, Smile, Loader2, User as UserIcon,
-  Pin, PinOff
+  Pin, PinOff, X, FileText
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -30,6 +30,10 @@ interface Message {
   text: string;
   createdAt: any;
   status?: 'sent' | 'delivered' | 'read';
+  image?: string;
+  document?: string;
+  documentName?: string;
+  documentType?: string;
 }
 
 interface Chat {
@@ -58,6 +62,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const { user, profile } = useAuth();
   const { role: urlRole } = useParams();
   const [searchParams] = useSearchParams();
+  const isCollapsed = useSidebarCollapse();
   const conversationIdParam = searchParams.get('id');
 
   const resolvedRole = type || (urlRole === 'landlord' ? 'landlord' : 'tenant');
@@ -69,6 +74,84 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedAttachment, setSelectedAttachment] = useState<{
+    dataUrl: string;
+    name: string;
+    type: string;
+    isImage: boolean;
+  } | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImg = file.type.startsWith('image/');
+    
+    if (isImg) {
+      setIsCompressing(true);
+      try {
+        const compressedBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const maxDimen = 800;
+              if (width > maxDimen || height > maxDimen) {
+                if (width > height) {
+                  height = Math.round((height * maxDimen) / width);
+                  width = maxDimen;
+                } else {
+                  width = Math.round((width * maxDimen) / height);
+                  height = maxDimen;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(compressed);
+              } else {
+                resolve(event.target?.result as string);
+              }
+            };
+            img.src = event.target?.result as string;
+          };
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+
+        setSelectedAttachment({
+          dataUrl: compressedBase64,
+          name: file.name,
+          type: 'image/jpeg',
+          isImage: true
+        });
+      } catch (err) {
+        console.error("Compression error:", err);
+      } finally {
+        setIsCompressing(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedAttachment({
+          dataUrl: event.target?.result as string,
+          name: file.name,
+          type: file.type,
+          isImage: false
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -149,26 +232,42 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   }, [selectedChatId, user]);
 
   const handleSendMessage = async () => {
-    if (!inputText.trim() || !selectedChatId || !user || sending) return;
+    if ((!inputText.trim() && !selectedAttachment) || !selectedChatId || !user || sending) return;
 
     setSending(true);
     try {
-      const messageData = {
+      const messageData: any = {
         senderId: user.uid,
         text: inputText,
         createdAt: serverTimestamp(),
       };
 
+      if (selectedAttachment) {
+        if (selectedAttachment.isImage) {
+          messageData.image = selectedAttachment.dataUrl;
+        } else {
+          messageData.document = selectedAttachment.dataUrl;
+          messageData.documentName = selectedAttachment.name;
+          messageData.documentType = selectedAttachment.type;
+        }
+      }
+
       await addDoc(collection(db, 'conversations', selectedChatId, 'messages'), messageData);
       
+      const displayLastMsg = selectedAttachment 
+        ? (selectedAttachment.isImage ? '📷 Image' : `📄 ${selectedAttachment.name}`) 
+        : inputText;
+
       // Update last message in conversation
       await updateDoc(doc(db, 'conversations', selectedChatId), {
-        lastMessage: inputText,
+        lastMessage: displayLastMsg,
         lastMessageAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
       setInputText('');
+      setSelectedAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `conversations/${selectedChatId}/messages`);
     } finally {
@@ -246,7 +345,10 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
     <div className="bg-secondary min-h-screen flex">
       <Sidebar type={resolvedRole} />
       
-      <div className="md:pl-24 lg:pl-72 flex-grow flex flex-col h-screen overflow-hidden">
+      <div className={cn(
+        "flex-grow flex flex-col h-screen overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="flex-grow flex overflow-hidden">
           {/* Chat List */}
           <div className={cn(
@@ -288,11 +390,19 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                 </div>
               ) : (
                 sortedChats.map((chat) => (
-                  <button
+                  <div
                     key={chat.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedChatId(chat.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedChatId(chat.id);
+                      }
+                    }}
                     className={cn(
-                      "w-full text-left p-4 rounded-3xl transition-all duration-300 flex gap-4 group hover:bg-secondary/50 relative border",
+                      "w-full text-left p-4 rounded-3xl transition-all duration-300 flex gap-4 group hover:bg-secondary/50 relative border cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-accent",
                       selectedChatId === chat.id 
                         ? "bg-primary text-secondary shadow-xl shadow-primary/20 border-accent/20" 
                         : chat.pinnedByUsers?.includes(user?.uid || '')
@@ -338,7 +448,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                       <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-1 truncate", selectedChatId === chat.id ? "text-accent/60" : "text-accent")}>{chat.propertyId}</p>
                       <p className={cn("text-xs truncate", selectedChatId === chat.id ? "text-secondary/60" : "text-primary/40")}>{chat.lastMessage || 'No messages yet'}</p>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -439,7 +549,30 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                             ? "bg-primary text-secondary rounded-tr-none shadow-primary/5" 
                             : "bg-white text-primary rounded-tl-none border border-primary/5 shadow-primary/5"
                         )}>
-                          {msg.text}
+                          {msg.image && (
+                            <div className="mb-3 rounded-2xl overflow-hidden max-w-full border border-black/10 shadow-sm bg-black/5">
+                              <img src={msg.image} alt="Attached snapshot" className="w-full h-auto object-cover max-h-60" />
+                            </div>
+                          )}
+                          {msg.document && (
+                            <a 
+                              href={msg.document} 
+                              download={msg.documentName || 'Attachment'}
+                              className={cn(
+                                "mb-3 p-4 rounded-2xl flex items-center justify-between gap-4 cursor-pointer transition-all group/doc",
+                                msg.senderId === user.uid
+                                  ? "bg-white/10 hover:bg-white/20 text-secondary"
+                                  : "bg-secondary hover:bg-accent/15 text-primary"
+                              )}
+                            >
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <FileText className="w-5 h-5 text-accent shrink-0" />
+                                <span className="text-xs font-bold truncate max-w-[150px]">{msg.documentName || 'Document'}</span>
+                              </div>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-accent shrink-0">Download</span>
+                            </a>
+                          )}
+                          {msg.text && <p>{msg.text}</p>}
                         </div>
                         {msg.senderId === user.uid && (
                           <button 
@@ -464,28 +597,73 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
 
                 {/* Input Area */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-transparent pointer-events-none">
-                  <div className="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] shadow-2xl border border-primary/5 flex items-center gap-4 pointer-events-auto shadow-primary/10">
-                    <button className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40">
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                    <input 
-                      type="text" 
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Type your message here..." 
-                      className="flex-grow bg-transparent py-2 outline-none font-medium text-primary text-sm"
-                    />
-                    <button className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40">
-                      <Smile className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={handleSendMessage}
-                      disabled={sending}
-                      className="w-12 h-12 bg-primary text-secondary flex items-center justify-center rounded-2xl hover:bg-accent hover:text-primary transition-all shadow-lg active:scale-95 disabled:opacity-50"
-                    >
-                      {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    </button>
+                  <div className="max-w-4xl mx-auto flex flex-col gap-2 pointer-events-auto">
+                    {selectedAttachment && (
+                      <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-3xl shadow-xl border border-primary/5 flex items-center justify-between gap-4 animate-slideUp animate-duration-305">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {selectedAttachment.isImage ? (
+                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-primary/10 shrink-0">
+                              <img src={selectedAttachment.dataUrl} className="w-full h-full object-cover" alt="Selected thumbnail" />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-xs font-bold text-primary truncate max-w-[200px]">{selectedAttachment.name}</span>
+                            <span className="text-[10px] text-primary/40 uppercase tracking-widest font-semibold font-mono">
+                              {selectedAttachment.isImage ? 'Compressed Image' : 'Document'}
+                            </span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedAttachment(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="w-8 h-8 rounded-full bg-primary/5 hover:bg-[#ff4444]/15 hover:text-[#ff4444] text-primary/40 flex items-center justify-center transition-all"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] shadow-2xl border border-primary/5 flex items-center gap-4 shadow-primary/10 w-full">
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={sending || isCompressing}
+                        className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40 disabled:opacity-50"
+                        title="Attach Photo or Document"
+                      >
+                        {isCompressing ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
+                      </button>
+                      <input 
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/*,.pdf,.doc,.docx,.txt"
+                      />
+                      <input 
+                        type="text" 
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder={selectedAttachment ? "Add a caption, or press send..." : "Type your message here..."} 
+                        className="flex-grow bg-transparent py-2 outline-none font-medium text-primary text-sm"
+                      />
+                      <button className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40">
+                        <Smile className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={handleSendMessage}
+                        disabled={sending || isCompressing}
+                        className="w-12 h-12 bg-primary text-secondary flex items-center justify-center rounded-2xl hover:bg-accent hover:text-primary transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                      >
+                        {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>

@@ -231,12 +231,21 @@ async function startServer() {
           name: name,
           userEmail: email,
           phone: data.phone || data["Client Phone"] || "",
-          message: messageContent
+          message: messageContent,
+          recipient: "nkeface14@gmail.com",
+          recipientEmail: "nkeface14@gmail.com",
+          toEmail: "nkeface14@gmail.com",
+          to: "nkeface14@gmail.com",
+          subject: subjectLine
         };
 
         if (isConsultation) {
           payload.formType = "consultation";
-          payload.propertyDetails = `Request Type: ${data["Request Type"] || "Valuation"}\nProperty Address: ${data["Property Address"] || "Not specified"}\nMarketing Consent: ${data["Marketing Consent"] || "No"}`;
+          payload.propertyDetails = `Request Type: ${data["Request Type"] || "Valuation/Consultation"}\nProperty Address: ${data["Property Address"] || "Not specified"}\nMarketing Consent: ${data["Marketing Consent"] || "No"}`;
+          payload.recipient = "nkeface14@gmail.com";
+          payload.recipientEmail = "nkeface14@gmail.com";
+          payload.toEmail = "nkeface14@gmail.com";
+          payload.to = "nkeface14@gmail.com";
         }
 
         const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXFtbWtlbmh6a2N5cWNsc3d5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDc3NDEsImV4cCI6MjA5NDc4Mzc0MX0.NT2ddVIg5GhTkg0AO6IqdT52e-LTSPBeqgS02SruQt4';

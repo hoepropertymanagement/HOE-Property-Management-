@@ -4,7 +4,7 @@
  */
 
 import { motion } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   Users, Home, MessageSquare, TrendingUp, 
@@ -15,11 +15,16 @@ import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 export default function LandlordDashboard() {
+  const isCollapsed = useSidebarCollapse();
+
   return (
     <div className="bg-secondary min-h-screen">
       <Sidebar type="landlord" />
       
-      <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+      <div className={cn(
+        "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="max-w-7xl mx-auto">
           <Link 
             to="/" 

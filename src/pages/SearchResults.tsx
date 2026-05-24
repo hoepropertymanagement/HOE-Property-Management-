@@ -216,25 +216,23 @@ export default function SearchResults() {
   const filteredProperties = useMemo(() => {
     let filtered = [...properties];
     
-    // Filter by radius from map center OR by text matching the location search term
+    // Filter strictly by the selected radius (e.g., 5 miles) from the map center
     const searchString = (activeSearch || query || '').toLowerCase().trim();
-    if (searchString) {
-      filtered = filtered.filter(p => {
-        const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
-        const matchesDistance = distance <= radius;
-        
-        const locMatch = p.location?.toLowerCase().includes(searchString) || 
-                         p.locationSearch?.toLowerCase().includes(searchString) ||
-                         p.title?.toLowerCase().includes(searchString);
-                         
-        return matchesDistance || locMatch;
-      });
-    } else {
-      filtered = filtered.filter(p => {
-        const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
-        return distance <= radius;
-      });
-    }
+    filtered = filtered.filter(p => {
+      const hasCoords = typeof p.lat === 'number' && typeof p.lng === 'number';
+      if (!hasCoords) {
+        // Fallback to text match if no valid spatial coordinates are mapped yet
+        if (searchString) {
+          return p.location?.toLowerCase().includes(searchString) || 
+                 p.locationSearch?.toLowerCase().includes(searchString) ||
+                 p.title?.toLowerCase().includes(searchString);
+        }
+        return true;
+      }
+      
+      const distance = getDistance(mapCenter.lat, mapCenter.lng, p.lat, p.lng);
+      return distance <= radius;
+    });
 
     if (minPrice) {
       filtered = filtered.filter(p => parseInt(p.price.replace(/[^\d]/g, '')) >= parseInt(minPrice));

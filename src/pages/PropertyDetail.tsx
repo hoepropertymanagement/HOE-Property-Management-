@@ -9,6 +9,7 @@ import {
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { useState, useEffect, useMemo } from 'react';
 import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
@@ -103,6 +104,20 @@ export default function PropertyDetail() {
             } catch (viewError) {
               console.error("Silent view log failed:", viewError);
             }
+          }
+
+          // Trigger Supabase RPC views counter increment (TASK 4)
+          try {
+            const { error: rpcErr } = await supabase.rpc('increment_property_views', { 
+              property_id: id 
+            });
+            if (rpcErr) {
+              console.warn("Supabase view increment RPC minor error:", rpcErr.message);
+            } else {
+              console.log("Supabase view counter incremented via RPC.");
+            }
+          } catch (sbErr) {
+            console.warn("Silent Supabase views increment fallback:", sbErr);
           }
         } else {
           // Fallback to system-defined mock properties in memory
@@ -509,14 +524,11 @@ export default function PropertyDetail() {
                 {property.epcCertificate ? (
                   <div className="bg-white rounded-[2rem] border border-primary/5 shadow-xl overflow-hidden group">
                     <img src={prepUrl(property.epcCertificate)} className="w-full h-auto" alt="EPC Certificate" />
-                    <div className="p-6 bg-primary/5 flex items-center justify-between">
+                    <div className="p-6 bg-primary/5">
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-accent" />
                         <span className="text-sm font-bold text-primary">Official EPC Document</span>
                       </div>
-                      <a href={prepUrl(property.epcCertificate)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-accent text-xs font-black uppercase tracking-widest hover:underline">
-                        <Download className="w-4 h-4" /> Download Certificate
-                      </a>
                     </div>
                   </div>
                 ) : (
@@ -534,66 +546,16 @@ export default function PropertyDetail() {
             </div>
           </div>
 
-          {/* Landlord Card - Displays Landlord profile with public contact details & copy-to-clipboard */}
+          {/* Landlord Card - Simplified to show only the Landlord Name */}
           <div className="lg:col-start-3">
             <div className="sticky top-40 bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-14 h-14 rounded-full bg-accent/10 border-2 border-accent flex items-center justify-center text-accent uppercase font-serif text-lg font-bold">
-                  {(landlord?.username || landlord?.name || property.landlordName || 'L').charAt(0)}
-                </div>
+              <div className="flex items-center gap-4 mb-8 pb-4 border-b border-primary/5">
                 <div>
-                  <h4 className="font-serif italic text-lg leading-tight text-primary">
+                  <span className="text-[9px] text-accent uppercase tracking-[0.25em] font-bold block mb-1">Assigned Listing Owner</span>
+                  <h4 className="font-serif italic text-2xl font-bold leading-tight text-primary">
                     {landlord?.username || landlord?.name || property.landlordName || 'Verified Landlord'}
                   </h4>
-                  <p className="text-primary/50 text-xs">
-                    {landlord?.role || 'Private Landlord'}
-                  </p>
                 </div>
-              </div>
-
-              <div className="space-y-3 mb-10">
-                {/* Email (Conditional on landlord.showEmail) */}
-                {landlord?.showEmail && landlord?.email ? (
-                  <div 
-                    onClick={() => handleCopy(landlord.email, 'email')}
-                    className="flex items-center justify-between gap-3 p-3 bg-secondary hover:bg-accent/5 rounded-xl border border-primary/5 cursor-pointer transition-all group"
-                    title="Click to copy email"
-                  >
-                    <div className="flex items-center gap-3 text-primary/70 text-sm font-medium overflow-hidden">
-                      <Mail className="w-4 h-4 text-accent shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="truncate">{landlord.email}</span>
-                    </div>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-accent shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">Copy</span>
-                  </div>
-                ) : null}
-
-                {/* Phone (Conditional on landlord.showPhoneNumber) */}
-                {landlord?.showPhoneNumber && (landlord?.phoneNumber || property.contactNumber) ? (
-                  <div 
-                    onClick={() => handleCopy(landlord?.phoneNumber || property.contactNumber, 'phone')}
-                    className="flex items-center justify-between gap-3 p-3 bg-secondary hover:bg-accent/5 rounded-xl border border-primary/5 cursor-pointer transition-all group"
-                    title="Click to copy phone"
-                  >
-                    <div className="flex items-center gap-3 text-primary/70 text-sm font-medium overflow-hidden">
-                      <Phone className="w-4 h-4 text-accent shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="truncate">{landlord?.phoneNumber || property.contactNumber}</span>
-                    </div>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-accent shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">Copy</span>
-                  </div>
-                ) : null}
-
-                <div className="flex items-center gap-3 p-3 text-primary/70 text-sm font-medium">
-                  <Info className="w-4 h-4 text-accent" />
-                  <span>Ref: {property.referenceNumber || property.encodedUniqueNumber}</span>
-                </div>
-              </div>
-
-              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/5 mb-8">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="w-4 h-4 text-accent" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">Verified Landlord</span>
-                </div>
-                <p className="text-xs text-primary/60 italic leading-tight">This landlord has successfully completed identity verification.</p>
               </div>
 
               <div className="space-y-4">

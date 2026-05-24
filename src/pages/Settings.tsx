@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   User, Mail, Phone, MapPin, Shield, Map as MapIcon, 
@@ -16,6 +16,7 @@ import LogoutModal from '../components/LogoutModal';
 type SettingsTab = 'account' | 'contact' | 'preferences' | 'security';
 
 export default function Settings() {
+  const isCollapsed = useSidebarCollapse();
   const { profile, updateProfile, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -100,7 +101,10 @@ export default function Settings() {
     <div className="min-h-screen bg-secondary">
       <Sidebar type={profile?.role === 'landlord' ? 'landlord' : 'tenant'} />
       
-      <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+      <div className={cn(
+        "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="max-w-6xl mx-auto">
           <Link 
             to="/dashboard" 

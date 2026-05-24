@@ -1,21 +1,26 @@
 import { motion } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { mockProperties } from '../constants/mockData';
 import PropertyCard from '../components/PropertyCard';
 import { Heart, Landmark, ArrowLeft } from 'lucide-react';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { Link } from 'react-router-dom';
+import { cn } from '../lib/utils';
 
 export default function SavedPropertiesPage() {
   const { savedIds, toggleSave } = useSavedProperties();
+  const isCollapsed = useSidebarCollapse();
   const savedProperties = mockProperties.filter(p => savedIds.has(p.id));
 
   return (
     <div className="bg-secondary min-h-screen">
       <Sidebar type="tenant" />
       
-      <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+      <div className={cn(
+        "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="max-w-6xl mx-auto">
           <Link 
             to="/dashboard" 

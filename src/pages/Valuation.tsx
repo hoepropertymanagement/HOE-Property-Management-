@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -23,6 +23,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Property, mockProperties } from '../constants/mockData';
 
 export default function Valuation() {
+  const isCollapsed = useSidebarCollapse();
   const { user } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
   const [realViews, setRealViews] = useState<{ propertyId: string; propertyTitle: string; timestamp: string }[]>([]);
@@ -205,7 +206,10 @@ export default function Valuation() {
     return (
       <div className="bg-secondary min-h-screen">
         <Sidebar type="landlord" />
-        <div className="md:pl-24 lg:pl-72 pt-10 pb-32 flex flex-col items-center justify-center min-h-[80vh] text-center">
+        <div className={cn(
+          "pt-10 pb-32 flex flex-col items-center justify-center min-h-[80vh] text-center transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+          isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+        )}>
           <Loader2 className="w-12 h-12 text-accent animate-spin mb-4" />
           <p className="text-primary/50 text-sm uppercase tracking-widest font-bold italic">Analyzing Portfolio Data...</p>
         </div>
@@ -220,7 +224,10 @@ export default function Valuation() {
       <div className="bg-secondary min-h-screen animate-fade-in">
         <Sidebar type="landlord" />
         
-        <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+        <div className={cn(
+          "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+          isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+        )}>
           <div className="max-w-7xl mx-auto">
             <header className="flex flex-col gap-4 mb-12">
               <Link 
@@ -290,7 +297,10 @@ export default function Valuation() {
     <div className="bg-secondary min-h-screen">
       <Sidebar type="landlord" />
       
-      <div className="md:pl-24 lg:pl-72 pt-10 pb-32 px-4 sm:px-6 lg:px-12">
+      <div className={cn(
+        "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
+      )}>
         <div className="max-w-7xl mx-auto">
           <header className="flex flex-col gap-4 mb-12">
             <Link 

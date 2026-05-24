@@ -320,7 +320,7 @@ export default function Home() {
               { label: 'Landlords', icon: ShieldCheck },
               { label: 'Tenants', icon: Clock },
               { 
-                label: 'Value My Property', 
+                label: 'Book Consultation', 
                 icon: Search,
                 onClick: () => document.getElementById('valuation')?.scrollIntoView({ behavior: 'smooth' })
               },
@@ -394,20 +394,20 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             <div className="lg:sticky lg:top-32">
-              <span className="text-accent text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">Professional Property Valuation</span>
+              <span className="text-accent text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">Professional Consultation</span>
               <h2 className="text-4xl md:text-6xl font-serif text-secondary mb-8 font-bold uppercase tracking-tight leading-none">
-                Book your <br /> home <span className="italic text-accent lowercase">valuation</span>
+                Book a <br /> bespoke <span className="italic text-accent lowercase">consultation</span>
               </h2>
               <p className="text-secondary/60 text-base md:text-lg leading-relaxed mb-10 max-w-lg">
-                Unlock the true potential of your property with our expert valuation service. 
-                Whether you're selling or letting, our local experts provide accurate, 
-                up-to-the-minute market insights.
+                Schedule a bespoke consultation with our property experts. 
+                Whether you are looking to let, rent, or invest, we are here to support 
+                your real estate goals with verified insight.
               </p>
               
               <div className="space-y-6">
                 {[
-                  "Free, no-obligation assessment",
-                  "Accurate data-driven valuations"
+                  "Personalized expert consultation",
+                  "Tailored market strategies"
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 text-secondary/80">
                     <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center border border-accent/20">
@@ -433,8 +433,8 @@ export default function Home() {
                     <div className="w-20 h-20 bg-[#d4af37]/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-[#d4af37]">
                       <ShieldCheck className="w-10 h-10 text-[#d4af37]" />
                     </div>
-                    <h3 className="text-2xl font-serif text-primary italic mb-2">Valuation Request Confirmed</h3>
-                    <p className="text-primary/60 text-[10px] font-black uppercase tracking-[0.3em] mb-8">Expert team member assigned to your route</p>
+                    <h3 className="text-2xl font-serif text-primary italic mb-2">Consultation Booking Confirmed</h3>
+                    <p className="text-primary/60 text-[10px] font-black uppercase tracking-[0.3em] mb-8">A property expert will be in touch shortly</p>
                     <button 
                       onClick={() => setIsSubmitted(false)}
                       className="px-8 py-3 bg-primary text-secondary rounded-full font-bold uppercase tracking-widest text-[10px]"
@@ -566,7 +566,7 @@ export default function Home() {
                           {formData.consent && <div className="w-2 h-2 rounded-full bg-primary" />}
                         </div>
                         <p className="text-[9px] text-primary/40 font-bold leading-relaxed uppercase tracking-widest">
-                          I consent to the storage and processing of my personal data for the purpose of property valuation.
+                          I consent to the storage and processing of my personal data for the purpose of booking a consultation.
                         </p>
                       </div>
 
@@ -581,7 +581,7 @@ export default function Home() {
                             Processing...
                           </>
                         ) : (
-                          <>Book Valuation</>
+                          <>Book Consultation</>
                         )}
                       </button>
                     </div>
@@ -678,7 +678,7 @@ export default function Home() {
               <div className="flex-1 min-w-0">
                 <h4 className="text-[11px] font-bold uppercase tracking-widest text-accent mb-0.5">Enquiry Sent</h4>
                 <p className="text-[10px] text-secondary/70 font-medium leading-relaxed">
-                  Your request has been routed to our valuation team. We will respond shortly.
+                  Your request has been routed to our consultation team. We will respond shortly.
                 </p>
               </div>
               <button 
