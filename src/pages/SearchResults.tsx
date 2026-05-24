@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SlidersHorizontal, Map as MapIcon, LayoutGrid, ChevronDown, Search, X, MapPin, Plus, Loader2, Home as LucideHome } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Circle, useMap, ZoomControl } from 'react-leaflet';
@@ -16,7 +16,8 @@ if (typeof window !== 'undefined') {
 }
 
 import PropertyCard from '../components/PropertyCard';
-import { Property } from '../constants/mockData';
+import AdSenseSlot from '../components/AdSenseSlot';
+import { Property, mockProperties } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import LocationSearch from '../components/LocationSearch';
 import PriceFilter from '../components/PriceFilter';
@@ -188,13 +189,23 @@ export default function SearchResults() {
         const q = fireQuery(collection(db, 'properties'), fireWhere('status', '==', 'Live'));
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setProperties(props);
+        
+        // Merge with system-defined mock properties so the core catalog never disappears
+        const merged = [...props];
+        mockProperties.forEach(mockItem => {
+          if (!merged.some(p => p.id === mockItem.id)) {
+            merged.push(mockItem);
+          }
+        });
+        setProperties(merged);
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           console.error("Access Restricted: Your search query was blocked by security rules. Ensure you are only querying 'Live' properties or your own listings.");
         } else {
           console.error("Error fetching properties:", err);
         }
+        // Graceful fallback purely to systems memory mock properties
+        setProperties(mockProperties);
       } finally {
         setIsLoading(false);
       }
@@ -681,22 +692,38 @@ export default function SearchResults() {
               </div>
             ) : filteredProperties.length > 0 ? (
               filteredProperties.map((property, idx) => (
-                <motion.div
-                  key={property.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  id={`property-${property.id}`}
-                  className={cn(
-                    "transition-all duration-300",
-                    hoveredId === property.id && "scale-[1.02] z-10"
+                <Fragment key={property.id}>
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    id={`property-${property.id}`}
+                    className={cn(
+                      "transition-all duration-300",
+                      hoveredId === property.id && "scale-[1.02] z-10"
+                    )}
+                  >
+                    <PropertyCard 
+                      property={property} 
+                      onHover={setHoveredId}
+                    />
+                  </motion.div>
+
+                  {/* Google AdSense slot inserted dynamically after every second listing in search feed */}
+                  {(idx + 1) % 2 === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="col-span-1"
+                    >
+                      <AdSenseSlot 
+                        slot={`1049248232-${idx}`} 
+                        format="rectangle"
+                        className="h-[380px] md:h-[400px]"
+                      />
+                    </motion.div>
                   )}
-                >
-                  <PropertyCard 
-                    property={property} 
-                    onHover={setHoveredId}
-                  />
-                </motion.div>
+                </Fragment>
               ))
             ) : (
               <div className="col-span-full py-32 flex flex-col items-center justify-center text-center">

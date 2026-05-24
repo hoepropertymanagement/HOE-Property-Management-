@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo } from 'react';
 import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { Property } from '../constants/mockData';
+import { Property, mockProperties } from '../constants/mockData';
 import { useNotification } from '../context/NotificationContext';
 
 export default function PropertyDetail() {
@@ -104,9 +104,30 @@ export default function PropertyDetail() {
               console.error("Silent view log failed:", viewError);
             }
           }
+        } else {
+          // Fallback to system-defined mock properties in memory
+          const mockProp = mockProperties.find(p => p.id === id);
+          if (mockProp) {
+            setProperty(mockProp);
+            setLandlord({
+              name: "Alexandra Eden",
+              bio: "Co-founder of HOE Property Management & House of Eden. Committed to providing premium and transparent listings for all tenants.",
+              contactNumber: mockProp.contactNumber || "07700 900077",
+              photoURL: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+              isPublicContact: true,
+              showPhoneNumber: true,
+              role: "landlord",
+              isPhoneVerified: true
+            });
+          }
         }
       } catch (error) {
         console.error("Error fetching property:", error);
+        // Fallback in case of database connectivity issues
+        const mockProp = mockProperties.find(p => p.id === id);
+        if (mockProp) {
+          setProperty(mockProp);
+        }
       } finally {
         setLoading(false);
       }

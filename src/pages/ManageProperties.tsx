@@ -12,7 +12,7 @@ import {
   Building, Search, Filter, ArrowLeft, ArrowRight,
   Eye, Edit, Trash2, MessageCircle, Loader2
 } from 'lucide-react';
-import { Property } from '../constants/mockData';
+import { Property, mockProperties } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -37,9 +37,23 @@ export default function ManageProperties() {
         );
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setProperties(props);
+        
+        // Merge with mock properties, dynamically assigning landlordId to current landlord
+        const merged = [...props];
+        mockProperties.forEach(mockItem => {
+          if (!merged.some(p => p.id === mockItem.id)) {
+            merged.push({
+              ...mockItem,
+              landlordId: user.uid
+            });
+          }
+        });
+        setProperties(merged);
       } catch (err) {
         console.error("Error fetching properties:", err);
+        // Fallback to system-defined mock properties with in-memory landlordId mapping
+        const fallback = mockProperties.map(m => ({ ...m, landlordId: user.uid }));
+        setProperties(fallback);
       } finally {
         setLoading(false);
       }

@@ -8,7 +8,7 @@ import PriceFilter from '../components/PriceFilter';
 import LocationSearch from '../components/LocationSearch';
 import PropertyCard from '../components/PropertyCard';
 import EnquiryForm from '../components/EnquiryForm';
-import { Property } from '../constants/mockData';
+import { Property, mockProperties } from '../constants/mockData';
 import { db } from '../lib/firebase';
 import { collection, query as fireQuery, limit, getDocs, where } from 'firebase/firestore';
 
@@ -30,13 +30,23 @@ export default function Home() {
         );
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setFeaturedProperties(props);
+        
+        // Merge with system memory mock properties
+        const merged = [...props];
+        mockProperties.slice(0, 3).forEach(mockItem => {
+          if (!merged.some(p => p.id === mockItem.id)) {
+            merged.push(mockItem);
+          }
+        });
+        setFeaturedProperties(merged.slice(0, 3));
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           console.error("Permission Denied: Unable to access featured properties. Please ensure the Firestore security rules allow public reading of live properties.");
         } else {
           console.error("Error fetching featured properties:", err);
         }
+        // Fallback purely to sliced system memory mock properties
+        setFeaturedProperties(mockProperties.slice(0, 3));
       } finally {
         setLoadingFeatured(false);
       }

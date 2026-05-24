@@ -20,7 +20,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Property } from '../constants/mockData';
+import { Property, mockProperties } from '../constants/mockData';
 
 export default function Valuation() {
   const { user } = useAuth();
@@ -41,7 +41,18 @@ export default function Valuation() {
         );
         const querySnapshot = await getDocs(qProperties);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setProperties(props);
+        
+        // Merge with system-defined mock properties dynamically owned by current landlord in-memory
+        const merged = [...props];
+        mockProperties.forEach(mockItem => {
+          if (!merged.some(p => p.id === mockItem.id)) {
+            merged.push({
+              ...mockItem,
+              landlordId: user.uid
+            });
+          }
+        });
+        setProperties(merged);
 
         // 2. Fetch logged views
         const qViews = query(
@@ -53,6 +64,9 @@ export default function Valuation() {
         setRealViews(loggedViews);
       } catch (err) {
         console.error("Error fetching analytics data:", err);
+        // Robust fallback
+        const fallback = mockProperties.map(m => ({ ...m, landlordId: user.uid }));
+        setProperties(fallback);
       } finally {
         setLoading(false);
       }
