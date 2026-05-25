@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, CheckCircle2, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 interface EnquiryFormProps {
   className?: string;
@@ -22,8 +23,11 @@ export default function EnquiryForm({ className }: EnquiryFormProps) {
 
     const email = formData.get('email') as string;
     const message = formData.get('message') as string;
+    const name = formData.get('name') as string;
+    const phone = formData.get('phone') as string || '';
+    const subject = formData.get('subject') as string;
 
-    // Validation check: More than 5 characters for both email and message, and email must contain '@'
+    // Validation check
     if (!email || email.length <= 5 || !email.includes('@') || !message || message.length <= 5) {
       return;
     }
@@ -38,21 +42,37 @@ export default function EnquiryForm({ className }: EnquiryFormProps) {
     setStatus('sending');
 
     try {
-      const response = await fetch('/api/enquiry', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          _subject: `General Enquiry: ${formData.get('subject')} - ${formData.get('name')}`,
-          name: formData.get('name'),
-          email: formData.get('email'),
-          subject: formData.get('subject'),
-          message: formData.get('message')
-        })
+      // 1. Insert directly into Supabase (will work safely on live host)
+      const { error: sbError } = await supabase.from('enquiries').insert({
+        name,
+        email,
+        phone,
+        subject,
+        message,
+        source: 'Property Detail / Contact Form'
       });
 
-      if (!response.ok) throw new Error('Internal endpoint failed');
+      if (sbError) throw sbError;
+
+      // 2. Automatically invoke Email Edge Function directly from the client securely
+      try {
+        await fetch("https://vlmqmmkenhzkcyqclswy.supabase.co/functions/v1/send-system-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: name,
+            userEmail: email,
+            phone: phone,
+            message: message,
+            subject: `[HOE Enquiry] ${subject} - from ${name}`
+          })
+        });
+      } catch (fnErr) {
+        // Still consider successful if written to DB, no hard fail needed for email alerts
+        console.warn('Silent email edge function failing - captured in DB safely.', fnErr);
+      }
 
       setStatus('success');
       form.reset();

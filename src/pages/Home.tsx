@@ -137,44 +137,58 @@ export default function Home() {
 
     // Automated Silent Enquiry Routing Implementation
     try {
-      const response = await fetch("/api/enquiry", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          _subject: `New Property Enquiry: ${formData.type} - ${formData.name}`,
-          _template: "table",
-          _cc: "Ruth.okafor120@gmail.com",
-          "Request Type": formData.type,
-          "Property Address": `${formData.address1}${formData.county ? ', ' + formData.county : ''}, ${formData.city}, ${formData.postcode}`,
-          "Client Name": formData.name,
-          "Client Email": formData.email,
-          "Client Phone": formData.phone,
-          "Message": formData.enquiryText,
-          "Marketing Consent": formData.consent ? "Yes" : "No"
-        })
+      // 1. Direct Supabase Insert
+      const { error: sbError } = await supabase.from('enquiries').insert({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: `New Property Enquiry: ${formData.type} - ${formData.name}`,
+        message: formData.enquiryText,
+        property_address: `${formData.address1}${formData.county ? ', ' + formData.county : ''}, ${formData.city}, ${formData.postcode}`,
+        request_type: formData.type,
+        source: 'Home Page Valuation Form'
       });
 
-      if (response.ok) {
-        // Clear the input fields natively using form.reset() style state update
-        setFormData({
-          type: '',
-          address1: '',
-          city: '',
-          county: '',
-          postcode: '',
-          name: '',
-          email: '',
-          phone: '',
-          enquiryText: '',
-          consent: false
+      if (sbError) throw sbError;
+
+      // 2. Fallback to Invoke edge function directly from client
+      try {
+        await fetch("https://vlmqmmkenhzkcyqclswy.supabase.co/functions/v1/send-system-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            formType: "consultation",
+            name: formData.name,
+            userEmail: formData.email,
+            phone: formData.phone,
+            message: formData.enquiryText,
+            propertyDetails: `Request Type: ${formData.type}\nProperty Address: ${formData.address1}, ${formData.city}, ${formData.postcode}\nMarketing Consent: ${formData.consent ? "Yes" : "No"}`,
+            subject: `[HOE Enquiry] New Property Enquiry: ${formData.type} - ${formData.name}`
+          })
         });
-        setErrors([]);
-        setIsSubmitted(true);
-        // Reset success state after 6 seconds
-        setTimeout(() => setIsSubmitted(false), 6000);
+      } catch (e) {
+        console.warn('Silent email edge function failing - captured in DB safely.', e);
       }
+
+      // Clear the input fields natively using form.reset() style state update
+      setFormData({
+        type: '',
+        address1: '',
+        city: '',
+        county: '',
+        postcode: '',
+        name: '',
+        email: '',
+        phone: '',
+        enquiryText: '',
+        consent: false
+      });
+      setErrors([]);
+      setIsSubmitted(true);
+      // Reset success state after 6 seconds
+      setTimeout(() => setIsSubmitted(false), 6000);
     } catch (err) {
       console.error('Submission failed silently:', err);
     } finally {

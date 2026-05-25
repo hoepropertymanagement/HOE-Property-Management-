@@ -59,3 +59,35 @@ FOR ALL
 TO authenticated
 USING (auth.uid() = landlord_id)
 WITH CHECK (auth.uid() = landlord_id);
+
+-- -------------------------------------------------------------------------
+-- TASK 5: ENQUIRIES TABLE FOR DIRECT FRONTEND SUBMISSIONS
+-- -------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.enquiries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  subject TEXT,
+  message TEXT NOT NULL,
+  property_address TEXT,
+  request_type TEXT,
+  source TEXT DEFAULT 'Website Form',
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.enquiries ENABLE ROW LEVEL SECURITY;
+
+-- Allow anyone (public visitors) to submit an enquiry
+CREATE POLICY "Allow public inserts for enquiries"
+ON public.enquiries
+FOR INSERT
+TO anon, authenticated
+WITH CHECK (true);
+
+-- Allow authenticated admins/landlords to read
+CREATE POLICY "Allow authenticated to view enquiries"
+ON public.enquiries
+FOR SELECT
+TO authenticated
+USING (true);
