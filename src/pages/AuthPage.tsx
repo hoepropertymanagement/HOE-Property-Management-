@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone, ShieldCheck } from 'lucide-react';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '../lib/firebase';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, getRedirectResult } from '../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import OTPInput from '../components/OTPInput';
@@ -27,7 +27,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [policyViolations, setPolicyViolations] = useState<{ notificationMessage: string }[]>([]);
   
-  const [role, setRole] = useState<'tenant' | 'landlord' | 'both' | null>(null);
+  const [role, setRole] = useState<'tenant' | 'landlord' | 'both' | 'agent' | null>(null);
   const [signupStep, setSignupStep] = useState(0); // 0 for role selection, 1 for details
   const [authStep, setAuthStep] = useState<'credentials' | 'verify-email' | 'verify-phone'>('credentials');
   const [countdown, setCountdown] = useState(0);
@@ -137,6 +137,19 @@ export default function AuthPage() {
       navigate('/', { replace: true });
     }
   }, [user, navigate, showSuccess, authStep]);
+
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          showNotification("Welcome back! Signed in with Google.", "gold");
+          navigate('/', { replace: true });
+        }
+      })
+      .catch((err) => {
+        console.error("Google redirect login error:", err);
+      });
+  }, [navigate, showNotification]);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -344,6 +357,7 @@ export default function AuthPage() {
         {[
           { id: 'tenant', label: 'Tenant', icon: Mail, desc: 'Browse and save properties' },
           { id: 'landlord', label: 'Landlord', icon: Briefcase, desc: 'Manage and list properties' },
+          { id: 'agent', label: 'Agent', icon: Briefcase, desc: 'Manage landlord properties' },
           { id: 'both', label: 'Both', icon: User, desc: 'Access all HOE features' }
         ].map((item) => (
           <button

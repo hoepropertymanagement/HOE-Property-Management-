@@ -11,7 +11,7 @@ import {
   MessageSquare, Search, Filter, MoreVertical, 
   Send, Phone, Video, Info, ArrowLeft, 
   CheckCheck, Clock, Paperclip, Smile, Loader2, User as UserIcon,
-  Pin, PinOff, X, FileText
+  Pin, PinOff, X, FileText, Calendar, Check, XCircle
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -23,6 +23,8 @@ import {
   addDoc, serverTimestamp, doc, getDoc, updateDoc, 
   setDoc, limit 
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
 
 interface Message {
@@ -59,20 +61,165 @@ interface Chat {
   };
 }
 
-const EMOJI_CATEGORIES = [
-  {
-    title: "Smileys & People",
-    emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "💀", "💩"]
-  },
-  {
-    title: "Gestures & Hearts",
-    emojis: ["👋", "🤚", "🖐", "✋", "🖖", "👌", "🤏", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌", "👐", "🤲", "🤝", "🙏", "✍️", "💅", "🤳", "💪", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟"]
-  },
-  {
-    title: "Homes & Activities",
-    emojis: ["🏠", "🏡", "🏢", "🏣", "🏥", "🏦", "🏨", "🏩", "🏪", "🏫", "🏬", "🏭", "🏯", "🏰", "💒", "🗼", "🗽", "🗺", "🧱", "🔑", "🗝", "🛋", "🛏", "🛌", "🚗", "🚲", "✈️", "🗺️", "🧳", "💼", "🔔", "⭐", "🎉", "🔥", "✨"]
+interface ViewingPayload {
+  days: string[];
+  times: string[];
+  specificDate: string;
+  status: 'pending' | 'confirmed' | 'declined';
+  confirmedDateTime?: string;
+  isEdited?: boolean;
+}
+
+const ViewingRequestWidget = ({ 
+  message, 
+  isCurrentUser, 
+  onUpdate 
+}: { 
+  message: Message, 
+  isCurrentUser: boolean,
+  onUpdate: (msgId: string, newPayload: ViewingPayload) => void
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDate, setEditDate] = useState('');
+
+  let payload: ViewingPayload | null = null;
+  try {
+    const jsonStr = message.text.replace('[VIEWING_REQUEST]:', '').trim();
+    payload = JSON.parse(jsonStr);
+  } catch (e) {
+    return <p>{message.text}</p>;
   }
-];
+
+  if (!payload) return <p>{message.text}</p>;
+
+  const handleConfirm = () => {
+    if (!payload) return;
+    if (isEditing && editDate) {
+      onUpdate(message.id, { ...payload, status: 'confirmed', confirmedDateTime: editDate, isEdited: true });
+    } else {
+      // Just confirming as is, but we need a date. 
+      // If there's a specific date, we use that.
+      onUpdate(message.id, { ...payload, status: 'confirmed', confirmedDateTime: editDate || payload.specificDate });
+    }
+    setIsEditing(false);
+  };
+
+  const handleDecline = () => {
+    if (!payload) return;
+    onUpdate(message.id, { ...payload, status: 'declined' });
+  };
+
+  const isPending = payload.status === 'pending';
+  const isConfirmed = payload.status === 'confirmed';
+  const isDeclined = payload.status === 'declined';
+
+  return (
+    <div className="w-full max-w-sm rounded-[1.5rem] border border-primary/10 overflow-hidden text-left bg-white text-primary">
+      <div className="bg-accent/10 px-4 py-3 flex items-center gap-3 border-b border-accent/10">
+        <div className="p-2 bg-accent/20 rounded-full text-accent">
+          <Calendar className="w-4 h-4" />
+        </div>
+        <div>
+          <h4 className="text-xs font-black uppercase tracking-widest text-accent leading-tight">Viewing Request</h4>
+          <span className="text-[10px] uppercase font-bold text-primary/40 block">
+            {isConfirmed ? 'Confirmed' : isDeclined ? 'Declined' : 'Pending Review'}
+          </span>
+        </div>
+      </div>
+      
+      <div className="p-4 space-y-4">
+        {payload.confirmedDateTime ? (
+          <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-700 block mb-1">Confirmed Time</span>
+            <span className="text-sm font-bold text-green-800">{new Date(payload.confirmedDateTime).toLocaleString()}</span>
+            {payload.isEdited && <span className="text-[9px] font-bold text-green-700/60 block mt-1">(Edited by Landlord)</span>}
+          </div>
+        ) : (
+          <>
+            {payload.days.length > 0 && (
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Preferred Days</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {payload.days.map((d: string) => (
+                    <span key={d} className="px-2.5 py-1 bg-primary/5 rounded-md text-[10px] font-bold">{d}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {payload.times.length > 0 && (
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Time of Day</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {payload.times.map((t: string) => (
+                    <span key={t} className="px-2.5 py-1 bg-primary/5 rounded-md text-[10px] font-bold">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {payload.specificDate && (
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Specific Suggestion</span>
+                <span className="text-xs font-medium bg-primary/5 px-3 py-1.5 rounded-lg inline-block">
+                  {new Date(payload.specificDate).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Actions for Landlord */}
+        {!isCurrentUser && isPending && (
+          <div className="pt-4 border-t border-primary/5 space-y-3">
+            {isEditing ? (
+              <div className="bg-primary/5 p-3 rounded-2xl space-y-3 animate-fadeIn">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 block mb-1 cursor-default">Review or Edit Time</span>
+                  <input 
+                    type="datetime-local" 
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-white border border-primary/10 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleConfirm} className="flex-1 py-2 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition-colors">
+                    Confirm Viewing
+                  </button>
+                  <button onClick={() => setIsEditing(false)} className="px-3 py-2 bg-primary/10 text-primary/60 rounded-xl text-xs font-bold hover:bg-primary/20 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[9px] text-primary/40 uppercase font-black tracking-widest text-center cursor-default">Respond to Viewing Request</p>
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    setEditDate(payload?.specificDate || '');
+                    setIsEditing(true);
+                  }} className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-700 py-2.5 rounded-xl border border-green-500/20 transition-colors flex justify-center items-center gap-1.5 text-xs font-bold">
+                    <Check className="w-3.5 h-3.5" /> Yes, Review Time
+                  </button>
+                  <button onClick={handleDecline} className="flex-1 bg-[#ff4444]/10 hover:bg-[#ff4444]/20 text-[#ff4444] py-2.5 rounded-xl border border-[#ff4444]/20 transition-colors flex justify-center items-center gap-1.5 text-xs font-bold">
+                    <XCircle className="w-3.5 h-3.5" /> No, Decline
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isCurrentUser && isPending && (
+          <div className="pt-3 border-t border-primary/5 text-center">
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-accent flex items-center justify-center gap-1.5">
+              <Clock className="w-3 h-3 animate-pulse" /> Awaiting Landlord Response
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const { user, profile } = useAuth();
@@ -94,11 +241,11 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedAttachment, setSelectedAttachment] = useState<{
     dataUrl: string;
+    file: File;
     name: string;
     type: string;
     isImage: boolean;
   } | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,6 +256,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
     reader.onload = (event) => {
       setSelectedAttachment({
         dataUrl: event.target?.result as string,
+        file: file,
         name: file.name,
         type: file.type,
         isImage: isImg
@@ -274,10 +422,19 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
       };
 
       if (selectedAttachment) {
+        // Upload to Firebase Storage
+        const fileExt = selectedAttachment.name.split('.').pop() || '';
+        const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const filePath = `chat_attachments/${user.uid}/${uniqueFileName}`;
+        const fileRef = ref(storage, filePath);
+        
+        await uploadBytes(fileRef, selectedAttachment.file);
+        const downloadUrl = await getDownloadURL(fileRef);
+
         if (selectedAttachment.isImage) {
-          messageData.image = selectedAttachment.dataUrl;
+          messageData.image = downloadUrl;
         } else {
-          messageData.document = selectedAttachment.dataUrl;
+          messageData.document = downloadUrl;
           messageData.document_name = selectedAttachment.name;
           messageData.document_type = selectedAttachment.type;
         }
@@ -608,7 +765,23 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                               <span className="text-[9px] font-black uppercase tracking-widest text-accent shrink-0">Download</span>
                             </a>
                           )}
-                          {msg.text && <p>{msg.text}</p>}
+                          {msg.text && msg.text.startsWith('[VIEWING_REQUEST]:') ? (
+                            <ViewingRequestWidget 
+                              message={msg} 
+                              isCurrentUser={msg.senderId === user.uid} 
+                              onUpdate={async (msgId, newPayload) => {
+                                try {
+                                  await supabase.from('messages').update({
+                                    body: `[VIEWING_REQUEST]: ${JSON.stringify(newPayload)}`
+                                  }).eq('id', msgId);
+                                } catch (e) {
+                                  console.error("Failed to update viewing request", e);
+                                }
+                              }} 
+                            />
+                          ) : (
+                            msg.text && <p>{msg.text}</p>
+                          )}
                         </div>
                         {msg.senderId === user.uid && (
                           <button 
@@ -682,6 +855,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                         accept="image/*,.pdf,.doc,.docx,.txt"
                       />
                       <input 
+                        id="message-input"
                         type="text" 
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
@@ -689,64 +863,19 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                         placeholder={selectedAttachment ? "Add a caption, or press send..." : "Type your message here..."} 
                         className="flex-grow bg-transparent py-2 outline-none font-medium text-primary text-sm"
                       />
-                      <div className="relative">
-                        <button 
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className={cn(
-                            "p-3 rounded-2xl transition-all", 
-                            showEmojiPicker ? "bg-accent/20 text-accent font-boldScale" : "hover:bg-secondary text-primary/40"
-                          )}
-                          title="Insert native emoji"
-                        >
-                          <Smile className="w-5 h-5" />
-                        </button>
-                        
-                        <AnimatePresence>
-                          {showEmojiPicker && (
-                            <>
-                              <div 
-                                className="fixed inset-0 z-[190]" 
-                                onClick={() => setShowEmojiPicker(false)}
-                              />
-                              
-                              <motion.div
-                                initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 12, scale: 0.95 }}
-                                className="absolute bottom-16 right-0 w-80 max-h-[350px] bg-[#15072c] border-2 border-accent/30 rounded-[2rem] shadow-2xl overflow-y-auto p-5 z-[200] custom-scrollbar text-left font-sans flex flex-col gap-4"
-                              >
-                                <div>
-                                  <h4 className="text-accent text-[9px] font-black uppercase tracking-[0.15em] mb-1">💡 Pro-Tip</h4>
-                                  <p className="text-[10px] text-[#c299ff]/70 normal-case leading-relaxed">
-                                    To open native OS emoji panel press <span className="text-accent font-bold">Win + .</span> on Windows or <span className="text-accent font-bold">Cmd + Ctrl + Space</span> on Mac.
-                                  </p>
-                                </div>
-                                <div className="border-t border-[#c299ff]/10 pt-3 flex flex-col gap-4">
-                                  {EMOJI_CATEGORIES.map((cat, idx) => (
-                                    <div key={idx} className="flex flex-col gap-1.5">
-                                      <span className="text-[10px] text-[#c299ff] font-bold uppercase tracking-wider">{cat.title}</span>
-                                      <div className="grid grid-cols-7 gap-1 text-2xl">
-                                        {cat.emojis.map((emoji) => (
-                                          <button
-                                            key={emoji}
-                                            type="button"
-                                            onClick={() => {
-                                              setInputText((prev) => prev + emoji);
-                                            }}
-                                            className="hover:scale-125 hover:bg-white/5 rounded-lg p-1 transition-all text-center select-none active:scale-90"
-                                          >
-                                            {emoji}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                      <button 
+                        onClick={() => {
+                          const input = document.getElementById('message-input');
+                          if (input) {
+                            input.focus();
+                          }
+                        }}
+                        className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40 disabled:opacity-50"
+                        title="Insert native emoji"
+                        disabled={sending}
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
                       <button 
                         onClick={handleSendMessage}
                         disabled={sending}

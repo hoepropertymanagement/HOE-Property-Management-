@@ -15,7 +15,7 @@ interface UserProfile {
   isPublicContact: boolean;
   showPhoneNumber: boolean;
   showEmail: boolean;
-  role?: 'tenant' | 'landlord' | 'both';
+  role?: 'tenant' | 'landlord' | 'both' | 'agent';
   isPhoneVerified?: boolean;
   createdAt: any;
   updatedAt: any;

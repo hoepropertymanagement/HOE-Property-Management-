@@ -19,7 +19,7 @@ export default function ProfilePage() {
     showPhoneNumber: false,
     showEmail: false,
     photoURL: '',
-    role: 'tenant' as 'tenant' | 'landlord' | 'both'
+    role: 'tenant' as 'tenant' | 'landlord' | 'both' | 'agent'
   });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -165,6 +165,13 @@ export default function ProfilePage() {
                 />
                 <h2 className="text-3xl font-serif italic text-accent truncate">{formData.name || 'Anonymous User'}</h2>
                 <p className="text-secondary/40 text-[9px] font-black uppercase tracking-[0.3em] mt-3">{profile?.email}</p>
+                {formData.role && (
+                  <div className="mt-4 inline-block px-4 py-1.5 rounded-full border border-accent/20 bg-accent/5">
+                    <p className="text-accent text-[9px] font-black uppercase tracking-[0.2em]">
+                      {formData.role === 'both' ? 'LANDLORD & TENANT' : formData.role}
+                    </p>
+                  </div>
+                )}
                 
                 <div className="mt-10 pt-8 border-t border-white/5 space-y-6">
                   <div className="flex items-center justify-between group/toggle">

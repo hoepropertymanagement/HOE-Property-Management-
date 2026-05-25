@@ -4,7 +4,7 @@ import {
   Bed, Bath, Move, MapPin, Share2, Heart, 
   ChevronLeft, ChevronRight, Info, Calendar, Phone, Mail,
   CheckCircle2, Ruler, Home, MessageSquare, Loader2,
-  FileText, Download
+  FileText, Download, X
 } from 'lucide-react';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { cn } from '../lib/utils';
@@ -17,6 +17,95 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc
 import { Property, mockProperties } from '../constants/mockData';
 import { useNotification } from '../context/NotificationContext';
 
+const BookViewingModal = ({ 
+  isOpen, 
+  onClose, 
+  property, 
+  onConfirm 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  property: Property | null,
+  onConfirm: (data: { days: string[], times: string[], specific: string }) => void 
+}) => {
+  const [days, setDays] = useState<string[]>([]);
+  const [times, setTimes] = useState<string[]>([]);
+  const [specific, setSpecific] = useState('');
+
+  if (!isOpen) return null;
+
+  const toggleDay = (d: string) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  const toggleTime = (t: string) => setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onConfirm({ days, times, specific });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp">
+        <div className="p-8 border-b border-primary/5 flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-serif italic text-primary">Book a Viewing</h3>
+            <p className="text-[10px] uppercase tracking-widest text-primary/40 font-bold mt-1">Request to see {property?.title}</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors">
+            <X className="w-5 h-5 text-primary/60" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Preferred Days</label>
+            <div className="flex flex-wrap gap-2">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleDay(day)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${days.includes(day) ? 'bg-accent text-white' : 'bg-primary/5 text-primary/60 hover:bg-primary/10'}`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Preferred Time Options</label>
+            <div className="flex flex-wrap gap-2">
+              {['Morning', 'Afternoon', 'Evening'].map(time => (
+                <button
+                  key={time}
+                  type="button"
+                  onClick={() => toggleTime(time)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${times.includes(time) ? 'bg-accent text-white' : 'bg-primary/5 text-primary/60 hover:bg-primary/10'}`}
+                >
+                  {time}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Or specific Date & Time</label>
+            <input 
+              type="datetime-local" 
+              value={specific}
+              onChange={(e) => setSpecific(e.target.value)}
+              className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-3 px-4 text-sm outline-none focus:border-accent focus:bg-white transition-all text-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all"
+          >
+            Send Viewing Request
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 export default function PropertyDetail() {
   const { id } = useParams();
   const [property, setProperty] = useState<Property | null>(null);
@@ -28,6 +117,7 @@ export default function PropertyDetail() {
   const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [isMessaging, setIsMessaging] = useState(false);
+  const [showViewingModal, setShowViewingModal] = useState(false);
 
   // Cache buster guarantees the browser displays freshly replaced images instantly
   const cacheBuster = useMemo(() => Date.now(), []);
@@ -296,6 +386,57 @@ export default function PropertyDetail() {
     }
   };
 
+  const handleViewingConfirm = async (data: { days: string[], times: string[], specific: string }) => {
+    if (!user) {
+      navigate('/auth', { state: { from: { pathname: `/property/${property?.id}` } } });
+      return;
+    }
+    if (!property?.landlordId) return;
+
+    setIsMessaging(true);
+    try {
+      const { data: convData, error } = await supabase.rpc('get_or_create_conversation', {
+        p_property_id: property.id,
+        p_participant_1: user.uid,
+        p_participant_2: property.landlordId,
+        p_created_by: user.uid
+      });
+
+      if (error) throw error;
+      const conversationId = convData?.[0]?.conversation_id ?? convData?.conversation_id ?? convData;
+
+      if (conversationId) {
+        const payload = JSON.stringify({
+          days: data.days,
+          times: data.times,
+          specificDate: data.specific,
+          status: 'pending'
+        });
+        const msgText = `[VIEWING_REQUEST]: ${payload}`;
+
+        const { error: msgErr } = await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_id: user.uid,
+          body: msgText
+        });
+        if (msgErr) throw msgErr;
+
+        await supabase.from('conversations').update({
+          last_message: '📅 Viewing Request',
+          last_message_at: new Date().toISOString()
+        }).eq('id', conversationId);
+
+        setShowViewingModal(false);
+        navigate(`/dashboard/tenant/messages?id=${conversationId}`);
+      }
+    } catch (err) {
+      console.error("Error creating viewing request:", err);
+      showNotification("Failed to send viewing request", "red");
+    } finally {
+      setIsMessaging(false);
+    }
+  };
+
   return (
     <div className="bg-secondary min-h-screen pb-24">
       {/* Detail Navbar (Hidden on mobile) */}
@@ -440,7 +581,10 @@ export default function PropertyDetail() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 md:gap-4">
-             <button className="px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+              <button 
+                onClick={() => setShowViewingModal(true)}
+                className="px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              >
                 <Calendar className="w-4 h-4" />
                 Book a Viewing
               </button>
@@ -639,7 +783,10 @@ export default function PropertyDetail() {
               </div>
 
               <div className="space-y-4">
-                 <button className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all flex items-center justify-center gap-2">
+                 <button 
+                  onClick={() => setShowViewingModal(true)}
+                  className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all flex items-center justify-center gap-2"
+                 >
                    <Calendar className="w-4 h-4" />
                    Book a Viewing
                  </button>
@@ -656,6 +803,12 @@ export default function PropertyDetail() {
           </div>
         </div>
       </div>
+      <BookViewingModal 
+        isOpen={showViewingModal} 
+        onClose={() => setShowViewingModal(false)}
+        property={property}
+        onConfirm={handleViewingConfirm}
+      />
     </div>
   );
 }

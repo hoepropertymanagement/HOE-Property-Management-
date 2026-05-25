@@ -22,7 +22,7 @@ export default function Settings() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   // ... rest of the state ...
   const [formData, setFormData] = useState({
-    role: profile?.role || 'tenant' as 'tenant' | 'landlord' | 'both',
+    role: profile?.role || 'tenant' as 'tenant' | 'landlord' | 'both' | 'agent',
     contactNumber: profile?.contactNumber || '',
     address: profile?.address || '',
     searchRadius: profile?.searchRadius || '15',
@@ -103,7 +103,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-secondary">
-      <Sidebar type={profile?.role === 'landlord' ? 'landlord' : 'tenant'} />
+      <Sidebar type={(profile?.role === 'landlord' || profile?.role === 'agent') ? profile.role : 'tenant'} />
       
       <div className={cn(
         "pt-10 pb-32 px-4 sm:px-6 lg:px-12 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
@@ -182,8 +182,8 @@ export default function Settings() {
                         <p className="text-[11px] text-primary/40 font-medium max-w-md mx-auto lg:mx-0">
                           Select your primary function within the ecosystem. This determines your dashboard views and available features.
                         </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-                          {['tenant', 'landlord', 'both'].map((role) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                          {['tenant', 'landlord', 'agent', 'both'].map((role) => (
                             <button
                               key={role}
                               type="button"
@@ -207,6 +207,7 @@ export default function Settings() {
                               )}>
                                 {role === 'tenant' && <Smartphone className={cn("w-7 h-7", formData.role === role ? "text-accent" : "text-primary/20")} />}
                                 {role === 'landlord' && <Home className={cn("w-7 h-7", formData.role === role ? "text-accent" : "text-primary/20")} />}
+                                {role === 'agent' && <Briefcase className={cn("w-7 h-7", formData.role === role ? "text-accent" : "text-primary/20")} />}
                                 {role === 'both' && <Globe className={cn("w-7 h-7", formData.role === role ? "text-accent" : "text-primary/20")} />}
                               </div>
                               <div className="space-y-1">
@@ -214,7 +215,7 @@ export default function Settings() {
                                   {role}
                                 </span>
                                 <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest">
-                                  {role === 'tenant' ? 'Searching for home' : role === 'landlord' ? 'Managing property' : 'Dual access'}
+                                  {role === 'tenant' ? 'Searching for home' : role === 'landlord' ? 'Managing property' : role === 'agent' ? 'Managing portfolio' : 'Dual access'}
                                 </p>
                               </div>
                             </button>
@@ -391,7 +392,7 @@ export default function Settings() {
           </div>
         </div>
       </div>
-      <BottomNav type={profile?.role === 'landlord' ? 'landlord' : 'tenant'} />
+      <BottomNav type={(profile?.role === 'landlord' || profile?.role === 'agent') ? profile.role : 'tenant'} />
 
       <LogoutModal 
         isOpen={showLogoutModal} 
