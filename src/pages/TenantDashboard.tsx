@@ -3,13 +3,15 @@ import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { mockProperties } from '../constants/mockData';
 import PropertyCard from '../components/PropertyCard';
-import { MessageSquare, Bell, Clock, ArrowUpRight, Heart, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Bell, Clock, ArrowUpRight, Heart, ArrowLeft, LayoutDashboard } from 'lucide-react';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
 
 export default function TenantDashboard() {
   const { savedIds } = useSavedProperties();
+  const { profile } = useAuth();
   const savedProperties = mockProperties.filter(p => savedIds.has(p.id));
   const isCollapsed = useSidebarCollapse();
 
@@ -22,13 +24,27 @@ export default function TenantDashboard() {
         isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
       )}>
         <div className="max-w-6xl mx-auto">
-          <Link 
-            to="/" 
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 hover:text-accent transition-all mb-8 w-fit group"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
-            Exit to Home
-          </Link>
+          <div className="flex flex-wrap items-center gap-6 mb-8">
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 hover:text-accent transition-all w-fit group"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
+              Exit to Home
+            </Link>
+            {profile?.role === 'both' && (
+              <>
+                <div className="w-px h-3 bg-primary/20" />
+                <Link 
+                  to="/dashboard" 
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent hover:text-accent/80 transition-all w-fit group"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Back to Portal Choice
+                </Link>
+              </>
+            )}
+          </div>
           
           <header className="mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>

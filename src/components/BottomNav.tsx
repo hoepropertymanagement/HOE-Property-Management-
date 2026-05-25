@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Heart, MessageSquare, 
-  PlusCircle, Home, Users, BarChart3
+  PlusCircle, Home, Users, BarChart3, ArrowLeftRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
   type: 'tenant' | 'landlord';
@@ -11,6 +12,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ type }: BottomNavProps) {
   const location = useLocation();
+  const { profile } = useAuth();
 
   const tenantMenu = [
     { icon: LayoutDashboard, label: 'Overview', path: '/dashboard/tenant' },
@@ -25,7 +27,16 @@ export default function BottomNav({ type }: BottomNavProps) {
     { icon: MessageSquare, label: 'Enquiries', path: '/dashboard/landlord/messages' }, 
   ];
 
-  const menu = type === 'tenant' ? tenantMenu : landlordMenu;
+  const baseMenu = type === 'tenant' ? tenantMenu : landlordMenu;
+  
+  const menu = [...baseMenu];
+  if (profile?.role === 'both') {
+    menu.push({
+      icon: ArrowLeftRight,
+      label: type === 'tenant' ? 'Switch Mode' : 'Switch Mode',
+      path: type === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'
+    });
+  }
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-primary/5 px-4 pt-3 pb-8 z-50 flex justify-around items-center">

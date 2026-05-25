@@ -59,6 +59,10 @@ export default function Settings() {
     e.preventDefault();
     
     if (activeTab === 'security' && formData.newPassword) {
+      if (/\s/.test(formData.newPassword)) {
+        showToast("Password cannot contain spaces", "error");
+        return;
+      }
       if (formData.newPassword.length < 8) {
         showToast("Password must be at least 8 characters", "error");
         return;
@@ -328,7 +332,7 @@ export default function Settings() {
                               <input
                                 type="password"
                                 value={formData.newPassword}
-                                onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
+                                onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value.replace(/\s/g, '') }))}
                                 className="w-full bg-secondary border border-primary/5 rounded-2xl py-4 px-6 text-sm outline-none focus:border-accent transition-all"
                               />
                             </div>
@@ -337,7 +341,7 @@ export default function Settings() {
                               <input
                                 type="password"
                                 value={formData.confirmPassword}
-                                onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value.replace(/\s/g, '') }))}
                                 className="w-full bg-secondary border border-primary/5 rounded-2xl py-4 px-6 text-sm outline-none focus:border-accent transition-all"
                               />
                             </div>

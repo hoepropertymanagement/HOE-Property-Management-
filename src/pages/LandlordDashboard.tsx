@@ -9,13 +9,15 @@ import BottomNav from '../components/BottomNav';
 import { 
   Users, Home, MessageSquare, TrendingUp, 
   Plus, ChevronRight, BarChart3, ArrowUpRight,
-  ArrowLeft
+  ArrowLeft, LayoutDashboard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
 
 export default function LandlordDashboard() {
   const isCollapsed = useSidebarCollapse();
+  const { profile } = useAuth();
 
   return (
     <div className="bg-secondary min-h-screen">
@@ -26,12 +28,25 @@ export default function LandlordDashboard() {
         isCollapsed ? "md:pl-24" : "md:pl-24 lg:pl-72"
       )}>
         <div className="max-w-7xl mx-auto">
-          <Link 
-            to="/" 
-            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/40 hover:text-accent transition-colors mb-8 w-fit"
-          >
-            <ArrowLeft className="w-3 h-3" /> Exit to Home
-          </Link>
+          <div className="flex flex-wrap items-center gap-6 mb-8">
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/40 hover:text-accent transition-colors w-fit"
+            >
+              <ArrowLeft className="w-3 h-3" /> Exit to Home
+            </Link>
+            {profile?.role === 'both' && (
+              <>
+                <div className="w-px h-3 bg-primary/20" />
+                <Link 
+                  to="/dashboard" 
+                  className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-accent hover:text-accent/80 transition-colors w-fit"
+                >
+                  <LayoutDashboard className="w-3 h-3" /> Back to Portal Choice
+                </Link>
+              </>
+            )}
+          </div>
 
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
             <div>

@@ -178,37 +178,25 @@ export default function PropertyDetail() {
 
     setIsMessaging(true);
     try {
-      // Check if conversation already exists
-      const q = query(
-        collection(db, 'conversations'),
-        where('participantIds', 'array-contains', user.uid),
-        where('propertyId', '==', property.id)
-      );
+      const { data, error } = await supabase.rpc('get_or_create_conversation', {
+        p_property_id: property.id,
+        p_participant_1: user.uid,
+        p_participant_2: property.landlordId,
+        p_created_by: user.uid // The user initiating the chat
+      });
 
-      const snapshot = await getDocs(q);
-      let conversationId = '';
-
-      const existingConvo = snapshot.docs.find(doc => 
-        doc.data().participantIds.includes(property.landlordId)
-      );
-
-      if (existingConvo) {
-        conversationId = existingConvo.id;
-      } else {
-        // Create new conversation
-        const convoData = {
-          participantIds: [user.uid, property.landlordId],
-          propertyId: property.id,
-          lastMessage: '',
-          lastMessageAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        };
-        const docRef = await addDoc(collection(db, 'conversations'), convoData);
-        conversationId = docRef.id;
+      if (error) {
+        console.error("Error from get_or_create_conversation RPC:", error);
+        throw error;
       }
 
-      navigate(`/dashboard/tenant/messages?id=${conversationId}`);
+      const conversationId = data?.[0]?.conversation_id ?? data?.conversation_id ?? data;
+
+      if (conversationId) {
+        navigate(`/dashboard/tenant/messages?id=${conversationId}`);
+      } else {
+        console.warn("No conversation ID returned from RPC");
+      }
     } catch (error) {
       console.error("Error starting conversation:", error);
     } finally {

@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Bed, Bath, Move, Heart, ChevronLeft, ChevronRight, Eye, Home, ShieldCheck } from 'lucide-react';
+import { Bed, Bath, Move, Heart, ChevronLeft, ChevronRight, Eye, Home, ShieldCheck, Share } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
 import type { Property } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
+
 
 interface PropertyCardProps {
   property: Property;
@@ -16,6 +18,7 @@ interface PropertyCardProps {
 export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const { isSaved, toggleSave } = useSavedProperties();
   const { profile } = useAuth();
+  const { showNotification } = useNotification();
   const isLandlord = profile?.role === 'landlord' || profile?.role === 'both';
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -199,21 +202,36 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
           Premium Listing
         </div>
 
-        <button 
-          className={cn(
-            "absolute top-3 right-3 p-2 backdrop-blur-md rounded-full transition-all duration-300 z-20",
-            saved 
-              ? "bg-accent text-primary" 
-              : "bg-white/20 text-white hover:bg-white hover:text-accent"
-          )}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleSave(property.id);
-          }}
-        >
-          <Heart className={cn("w-4 h-4", saved && "fill-current")} />
-        </button>
+        <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
+          <button 
+            className="p-2 backdrop-blur-md rounded-full bg-white/20 text-white hover:bg-white hover:text-accent transition-all duration-300"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const link = `${window.location.origin}/property/${property.id}`;
+              navigator.clipboard.writeText(link);
+              showNotification('Property link copied to clipboard!', 'info');
+            }}
+          >
+            <Share className="w-4 h-4" />
+          </button>
+
+          <button 
+            className={cn(
+              "p-2 backdrop-blur-md rounded-full transition-all duration-300",
+              saved 
+                ? "bg-accent text-primary" 
+                : "bg-white/20 text-white hover:bg-white hover:text-accent"
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleSave(property.id);
+            }}
+          >
+            <Heart className={cn("w-4 h-4", saved && "fill-current")} />
+          </button>
+        </div>
       </div>
 
       <Link to={`/property/${property.id}`} className="p-5 flex-grow flex flex-col">

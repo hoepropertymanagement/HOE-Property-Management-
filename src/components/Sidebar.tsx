@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Heart, MessageSquare, 
   Settings, LogOut,
   PlusCircle, Home, Users, BarChart3,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ArrowLeftRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,7 +48,7 @@ export default function Sidebar({ type }: SidebarProps) {
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, profile } = useAuth();
 
   const tenantMenu = [
     { icon: LayoutDashboard, label: 'Overview', path: '/dashboard/tenant' },
@@ -97,6 +97,24 @@ export default function Sidebar({ type }: SidebarProps) {
           "flex-grow overflow-y-auto overflow-x-hidden pt-8 custom-scrollbar",
           isCollapsed ? "px-4" : "p-8"
         )}>
+          {profile?.role === 'both' && (
+            <div className="mb-6 px-4">
+              <Link
+                to={type === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'}
+                title={isCollapsed ? (type === 'tenant' ? 'Switch to Landlord Portal' : 'Switch to Tenant Portal') : ""}
+                className="flex items-center gap-4 py-3 bg-accent/10 border border-accent/30 rounded-2xl hover:bg-accent hover:border-accent hover:text-primary group transition-all duration-300 shadow-sm justify-center"
+              >
+                <ArrowLeftRight className="w-5 h-5 text-accent group-hover:text-primary transition-colors flex-shrink-0" />
+                <span className={cn(
+                  "whitespace-nowrap transition-all duration-300 text-xs font-bold uppercase tracking-widest text-accent group-hover:text-primary",
+                  isCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
+                )}>
+                  {type === 'tenant' ? 'Switch to Landlord' : 'Switch to Tenant'}
+                </span>
+              </Link>
+            </div>
+          )}
+
           <div className={cn(
             "mb-10 px-4 transition-opacity duration-300",
             isCollapsed ? "opacity-0" : "opacity-100"
