@@ -222,17 +222,27 @@ export default function Navbar() {
                   <Link to="/search?mode=Rent" className={getMobileLinkClass(isRentActive)} onClick={() => setIsOpen(false)}>Lettings/Buy</Link>
                   <Link to="/contact" className={getMobileLinkClass(location.pathname === '/contact')} onClick={() => setIsOpen(false)}>Contact</Link>
                   <Link to="/dashboard" className={getMobileLinkClass(isDashboardActive)} onClick={() => setIsOpen(false)}>Dashboard</Link>
+                  {user && (
+                    <Link to="/settings" className={getMobileLinkClass(location.pathname === '/settings')} onClick={() => setIsOpen(false)}>Settings</Link>
+                  )}
                 </div>
 
                 <div className="pt-6 border-t border-primary/5 flex flex-col gap-4">
                   {user ? (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-2">
                       <Link 
                         to="/profile" 
                         className="py-3 bg-primary text-secondary text-center rounded-lg font-black uppercase tracking-[0.15em] text-[10px] flex items-center justify-center cursor-pointer hover:bg-primary/95 transition-all"
                         onClick={() => setIsOpen(false)}
                       >
                         Profile
+                      </Link>
+                      <Link 
+                        to="/settings" 
+                        className="py-3 bg-secondary text-primary border border-primary/10 text-center rounded-lg font-black uppercase tracking-[0.15em] text-[10px] flex items-center justify-center cursor-pointer hover:bg-primary/5 transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        Settings
                       </Link>
                       <button 
                         onClick={() => { setShowLogoutModal(true); setIsOpen(false); }}

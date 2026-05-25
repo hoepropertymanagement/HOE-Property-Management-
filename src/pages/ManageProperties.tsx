@@ -47,7 +47,7 @@ export default function ManageProperties() {
           const { data: sbData, error: sbError } = await supabase
             .from('properties')
             .select('*')
-            .eq('landlord_id', user.uid); // Ensure explicit filter to only show logged-in user's properties
+            .eq('landlord_id', user.uid);
           
           if (!sbError && sbData) {
             sbProps = sbData.map((item: any) => ({
@@ -218,12 +218,12 @@ export default function ManageProperties() {
                   ) : filteredProperties.length > 0 ? filteredProperties.map((p) => (
                     <tr key={p.id} className="group hover:bg-secondary/30 transition-colors border-b border-primary/5 last:border-0 font-sans">
                       <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
+                        <Link to={`/property/${p.id}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group/item cursor-pointer">
                           <div className="relative">
                             {p.image ? (
-                              <img src={p.image} className="w-16 h-16 rounded-2xl object-cover shadow-sm" alt={p.title} />
+                              <img src={p.image} className="w-16 h-16 rounded-2xl object-cover shadow-sm transition-transform group-hover/item:scale-105" alt={p.title} />
                             ) : (
-                              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center border border-primary/5">
+                              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center border border-primary/5 transition-transform group-hover/item:scale-105">
                                 <Building className="w-8 h-8 text-primary/10" />
                               </div>
                             )}
@@ -233,9 +233,9 @@ export default function ManageProperties() {
                           </div>
                           <div>
                             <p className="font-bold text-primary group-hover:text-accent transition-colors text-base">{p.title}</p>
-                            <p className="text-[10px] text-primary/40 font-medium uppercase tracking-wider">{p.location}</p>
+                            <p className="text-[10px] text-primary/40 font-medium uppercase tracking-wider group-hover:text-accent/60 transition-colors">{p.location}</p>
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-8 py-6">
                         <p className="font-bold text-primary">{p.price}</p>

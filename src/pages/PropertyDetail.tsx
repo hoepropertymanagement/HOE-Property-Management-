@@ -74,8 +74,48 @@ export default function PropertyDetail() {
       try {
         const docRef = doc(db, 'properties', id);
         const docSnap = await getDoc(docRef);
+        let propData: Property | null = null;
+
         if (docSnap.exists()) {
-          const propData = { id: docSnap.id, ...docSnap.data() } as Property;
+          propData = { id: docSnap.id, ...docSnap.data() } as Property;
+        } else {
+          try {
+            const { data: sbProp, error: sbError } = await supabase
+              .from('properties')
+              .select('*')
+              .eq('id', id)
+              .maybeSingle();
+            
+            if (!sbError && sbProp) {
+              propData = {
+                id: sbProp.id,
+                title: sbProp.title || sbProp.name || 'Untitled Property',
+                description: sbProp.description || '',
+                image: sbProp.image || sbProp.image_url || '',
+                images: sbProp.images || [],
+                price: typeof sbProp.price === 'number' ? `£${sbProp.price.toLocaleString()}` : (sbProp.price || ''),
+                beds: sbProp.beds || sbProp.bedrooms || 0,
+                bedrooms: sbProp.beds || sbProp.bedrooms || 0,
+                baths: sbProp.baths || sbProp.bathrooms || 0,
+                bathrooms: sbProp.baths || sbProp.bathrooms || 0,
+                status: sbProp.status || 'Draft',
+                landlordId: sbProp.landlord_id || '',
+                views: sbProp.views || 0,
+                contactNumber: sbProp.contact_number || '',
+                councilTax: sbProp.council_tax || 'Band A',
+                energyEfficiency: sbProp.energy_efficiency || 'E',
+                environmentalImpact: sbProp.environmental_impact || 'E',
+                location: sbProp.location || '',
+                lat: typeof sbProp.lat === 'number' ? sbProp.lat : undefined,
+                lng: typeof sbProp.lng === 'number' ? sbProp.lng : undefined,
+              } as unknown as Property;
+            }
+          } catch (sbErr) {
+            console.warn("Silent Supabase fetch error in details:", sbErr);
+          }
+        }
+
+        if (propData) {
           setProperty(propData);
 
           // Fetch landowner profile
@@ -149,6 +189,58 @@ export default function PropertyDetail() {
     }
     fetchProperty();
   }, [id]);
+
+  // Dynamic SEO Metadata Injection for Property Titles, Prices, Locations & UK Rental Search Keywords
+  useEffect(() => {
+    if (!property) return;
+
+    // Save previous document title to restore on unmount
+    const prevTitle = document.title;
+    
+    // Create new SEO Title: e.g., "3 Bed Flat in Hatfield - £1,200/mo | HOE Property Management"
+    const bedsText = property.beds ? `${property.beds} Bed ` : '';
+    const titleText = `${bedsText}${property.title} in ${property.location || 'UK'} - ${property.price} | HOE Property Management`;
+    document.title = titleText;
+
+    // Helper function to safely update or append meta tags in document head
+    const updateMetaTag = (attributeName: string, attributeValue: string, content: string) => {
+      if (!content) return;
+      let element = document.querySelector(`meta[${attributeName}="${attributeValue}"]`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attributeName, attributeValue);
+        document.head.appendChild(element);
+      }
+      element.setAttribute('content', content);
+    };
+
+    // Clean description text for search snippets
+    const cleanDesc = property.description
+      ? property.description.replace(/<[^>]*>/g, '').substring(0, 160) + '...'
+      : `Stunning ${bedsText}${property.title || 'Property'} available for rent in ${property.location || 'UK'}. Explore live pricing, virtual details, council tax bands, EPC rating, and book a viewing with HOE Property Management.`;
+
+    // 1. General Search Engine Optimization
+    updateMetaTag('name', 'description', cleanDesc);
+    updateMetaTag('name', 'keywords', `${property.location || 'UK'} rental sites, property for rent in ${property.location || 'UK'}, UK lettings agency, student flat, shared housing, buy property, house of eden, hoe property management, EPC verified landlords`);
+    
+    // 2. OpenGraph Protocols (for Social Sharing e.g. Facebook, LinkedIn, iMessage, WhatsApp)
+    updateMetaTag('property', 'og:title', titleText);
+    updateMetaTag('property', 'og:description', cleanDesc);
+    updateMetaTag('property', 'og:image', property.image || '');
+    updateMetaTag('property', 'og:url', window.location.href);
+    updateMetaTag('property', 'og:type', 'website');
+
+    // 3. Twitter Cards for dynamic social sharing previews
+    updateMetaTag('name', 'twitter:card', 'summary_large_image');
+    updateMetaTag('name', 'twitter:title', titleText);
+    updateMetaTag('name', 'twitter:description', cleanDesc);
+    updateMetaTag('name', 'twitter:image', property.image || '');
+
+    // Restore previous title on component update or unmount
+    return () => {
+      document.title = prevTitle;
+    };
+  }, [property]);
 
   if (loading) {
     return (
