@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
-  type: 'tenant' | 'landlord';
+  type: 'tenant' | 'landlord' | 'agent';
 }
 
 export default function BottomNav({ type }: BottomNavProps) {
@@ -27,13 +27,24 @@ export default function BottomNav({ type }: BottomNavProps) {
     { icon: MessageSquare, label: 'Enquiries', path: '/dashboard/landlord/messages' }, 
   ];
 
-  const baseMenu = type === 'tenant' ? tenantMenu : landlordMenu;
+  const agentMenu = [
+    { icon: LayoutDashboard, label: 'Overview', path: '/dashboard/agent' },
+    { icon: Users, label: 'Landlords', path: '/dashboard/agent/landlords' },
+    { icon: Home, label: 'Properties', path: '/dashboard/agent/properties' },
+  ];
+
+  let baseMenu = tenantMenu;
+  if (type === 'landlord') {
+    baseMenu = landlordMenu;
+  } else if (type === 'agent') {
+    baseMenu = agentMenu;
+  }
   
   const menu = [...baseMenu];
   if (profile?.role === 'both') {
     menu.push({
       icon: ArrowLeftRight,
-      label: type === 'tenant' ? 'Switch Mode' : 'Switch Mode',
+      label: 'Switch Mode',
       path: type === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'
     });
   }

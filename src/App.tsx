@@ -10,6 +10,7 @@ import SearchResults from './pages/SearchResults';
 import PropertyDetail from './pages/PropertyDetail';
 import TenantDashboard from './pages/TenantDashboard';
 import LandlordDashboard from './pages/LandlordDashboard';
+import AgentDashboard from './pages/AgentDashboard';
 import AddProperty from './pages/AddProperty';
 import ManageProperties from './pages/ManageProperties';
 import Valuation from './pages/Valuation';
@@ -130,6 +131,11 @@ export default function App() {
                       <Route path="/dashboard/tenant" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />
                       <Route path="/dashboard/tenant/saved" element={<ProtectedRoute><SavedPropertiesPage /></ProtectedRoute>} />
                       <Route path="/dashboard/tenant/messages" element={<ProtectedRoute><Messages type="tenant" /></ProtectedRoute>} />
+                      
+                      {/* Agent Routes */}
+                      <Route path="/dashboard/agent" element={<ProtectedRoute><AgentDashboard tab="overview" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent/landlords" element={<ProtectedRoute><AgentDashboard tab="landlords" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent/properties" element={<ProtectedRoute><AgentDashboard tab="properties" /></ProtectedRoute>} />
                       
                       {/* Fallbacks */}
                       <Route path="/tenant/*" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />

@@ -59,6 +59,21 @@ interface Chat {
   };
 }
 
+const EMOJI_CATEGORIES = [
+  {
+    title: "Smileys & People",
+    emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "💀", "💩"]
+  },
+  {
+    title: "Gestures & Hearts",
+    emojis: ["👋", "🤚", "🖐", "✋", "🖖", "👌", "🤏", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌", "👐", "🤲", "🤝", "🙏", "✍️", "💅", "🤳", "💪", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟"]
+  },
+  {
+    title: "Homes & Activities",
+    emojis: ["🏠", "🏡", "🏢", "🏣", "🏥", "🏦", "🏨", "🏩", "🏪", "🏫", "🏬", "🏭", "🏯", "🏰", "💒", "🗼", "🗽", "🗺", "🧱", "🔑", "🗝", "🛋", "🛏", "🛌", "🚗", "🚲", "✈️", "🗺️", "🧳", "💼", "🔔", "⭐", "🎉", "🔥", "✨"]
+  }
+];
+
 export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const { user, profile } = useAuth();
   const { role: urlRole } = useParams();
@@ -83,75 +98,23 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
     type: string;
     isImage: boolean;
   } | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const isImg = file.type.startsWith('image/');
-    
-    if (isImg) {
-      setIsCompressing(true);
-      try {
-        const compressedBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement('canvas');
-              let width = img.width;
-              let height = img.height;
-              const maxDimen = 800;
-              if (width > maxDimen || height > maxDimen) {
-                if (width > height) {
-                  height = Math.round((height * maxDimen) / width);
-                  width = maxDimen;
-                } else {
-                  width = Math.round((width * maxDimen) / height);
-                  height = maxDimen;
-                }
-              }
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.drawImage(img, 0, 0, width, height);
-                const compressed = canvas.toDataURL('image/jpeg', 0.7);
-                resolve(compressed);
-              } else {
-                resolve(event.target?.result as string);
-              }
-            };
-            img.src = event.target?.result as string;
-          };
-          reader.onerror = (err) => reject(err);
-          reader.readAsDataURL(file);
-        });
-
-        setSelectedAttachment({
-          dataUrl: compressedBase64,
-          name: file.name,
-          type: 'image/jpeg',
-          isImage: true
-        });
-      } catch (err) {
-        console.error("Compression error:", err);
-      } finally {
-        setIsCompressing(false);
-      }
-    } else {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedAttachment({
-          dataUrl: event.target?.result as string,
-          name: file.name,
-          type: file.type,
-          isImage: false
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSelectedAttachment({
+        dataUrl: event.target?.result as string,
+        name: file.name,
+        type: file.type,
+        isImage: isImg
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const scrollToBottom = () => {
@@ -686,7 +649,7 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                           <div className="flex flex-col overflow-hidden">
                             <span className="text-xs font-bold text-primary truncate max-w-[200px]">{selectedAttachment.name}</span>
                             <span className="text-[10px] text-primary/40 uppercase tracking-widest font-semibold font-mono">
-                              {selectedAttachment.isImage ? 'Compressed Image' : 'Document'}
+                              {selectedAttachment.isImage ? 'Image Attachment' : 'Document'}
                             </span>
                           </div>
                         </div>
@@ -705,11 +668,11 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                     <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] shadow-2xl border border-primary/5 flex items-center gap-4 shadow-primary/10 w-full">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={sending || isCompressing}
+                        disabled={sending}
                         className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40 disabled:opacity-50"
                         title="Attach Photo or Document"
                       >
-                        {isCompressing ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
+                        <Paperclip className="w-5 h-5" />
                       </button>
                       <input 
                         type="file"
@@ -726,12 +689,67 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                         placeholder={selectedAttachment ? "Add a caption, or press send..." : "Type your message here..."} 
                         className="flex-grow bg-transparent py-2 outline-none font-medium text-primary text-sm"
                       />
-                      <button className="p-3 hover:bg-secondary rounded-2xl transition-all text-primary/40">
-                        <Smile className="w-5 h-5" />
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className={cn(
+                            "p-3 rounded-2xl transition-all", 
+                            showEmojiPicker ? "bg-accent/20 text-accent font-boldScale" : "hover:bg-secondary text-primary/40"
+                          )}
+                          title="Insert native emoji"
+                        >
+                          <Smile className="w-5 h-5" />
+                        </button>
+                        
+                        <AnimatePresence>
+                          {showEmojiPicker && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-[190]" 
+                                onClick={() => setShowEmojiPicker(false)}
+                              />
+                              
+                              <motion.div
+                                initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                                className="absolute bottom-16 right-0 w-80 max-h-[350px] bg-[#15072c] border-2 border-accent/30 rounded-[2rem] shadow-2xl overflow-y-auto p-5 z-[200] custom-scrollbar text-left font-sans flex flex-col gap-4"
+                              >
+                                <div>
+                                  <h4 className="text-accent text-[9px] font-black uppercase tracking-[0.15em] mb-1">💡 Pro-Tip</h4>
+                                  <p className="text-[10px] text-[#c299ff]/70 normal-case leading-relaxed">
+                                    To open native OS emoji panel press <span className="text-accent font-bold">Win + .</span> on Windows or <span className="text-accent font-bold">Cmd + Ctrl + Space</span> on Mac.
+                                  </p>
+                                </div>
+                                <div className="border-t border-[#c299ff]/10 pt-3 flex flex-col gap-4">
+                                  {EMOJI_CATEGORIES.map((cat, idx) => (
+                                    <div key={idx} className="flex flex-col gap-1.5">
+                                      <span className="text-[10px] text-[#c299ff] font-bold uppercase tracking-wider">{cat.title}</span>
+                                      <div className="grid grid-cols-7 gap-1 text-2xl">
+                                        {cat.emojis.map((emoji) => (
+                                          <button
+                                            key={emoji}
+                                            type="button"
+                                            onClick={() => {
+                                              setInputText((prev) => prev + emoji);
+                                            }}
+                                            className="hover:scale-125 hover:bg-white/5 rounded-lg p-1 transition-all text-center select-none active:scale-90"
+                                          >
+                                            {emoji}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <button 
                         onClick={handleSendMessage}
-                        disabled={sending || isCompressing}
+                        disabled={sending}
                         className="w-12 h-12 bg-primary text-secondary flex items-center justify-center rounded-2xl hover:bg-accent hover:text-primary transition-all shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

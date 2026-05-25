@@ -185,26 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
-      console.warn("Popup blocked or closed by user, attempting redirect login:", error);
-      
-      const popupClosedOrBlocked = 
-        error?.code === 'auth/popup-closed-by-user' || 
-        error?.code === 'auth/popup-blocked' || 
-        error?.code === 'auth/cancelled-popup-request' ||
-        error?.message?.includes('popup-closed-by-user') ||
-        error?.message?.includes('popup-blocked');
-
-      if (popupClosedOrBlocked) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectError) {
-          console.error("Redirect login error:", redirectError);
-          throw redirectError;
-        }
-      }
+      console.error("Google login redirect error:", error);
       throw error;
     }
   };

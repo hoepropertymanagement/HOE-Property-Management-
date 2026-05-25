@@ -36,7 +36,6 @@ export default function AuthPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [showGoogleHelp, setShowGoogleHelp] = useState(false);
   
   const { loginWithGoogle, user, updateProfile } = useAuth();
   const { showNotification } = useNotification();
@@ -293,24 +292,11 @@ export default function AuthPage() {
     setLoading(true);
     setError('');
     try {
+      showNotification("Connecting to Google...", "gold");
       await loginWithGoogle();
-      const from = (location.state as any)?.from?.pathname || '/';
-      showNotification("Welcome back! Signed in with Google.", "gold");
-      navigate(from, { replace: true });
     } catch (err: any) {
-      console.error("Popup login failed:", err);
-      const isPopupError = 
-        err?.code === 'auth/popup-closed-by-user' || 
-        err?.code === 'auth/popup-blocked' || 
-        err?.message?.includes('popup-closed-by-user') ||
-        err?.message?.includes('popup-blocked');
-
-      if (isPopupError) {
-        setError("Sign-in popup was blocked or closed. Opening the 3-step configuration overlay guide...");
-      } else {
-        setError(err.message || "An error occurred during Google sign-in. Opening the 3-step configuration overlay guide...");
-      }
-      setShowGoogleHelp(true);
+      console.error("Google sign-in login failed:", err);
+      setError(err?.message || "Google Sign-In failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -779,15 +765,7 @@ export default function AuthPage() {
               Google Integration
             </button>
 
-            {isPreviewEnvironment && (
-              <button
-                type="button"
-                onClick={() => setShowGoogleHelp(true)}
-                className="w-full mt-3 text-[9px] font-black uppercase tracking-[0.18em] text-accent/60 hover:text-accent select-none cursor-pointer text-center hover:underline transition-all"
-              >
-                Having issues with Google Sign-In? Click here for the 3-step setup guide
-              </button>
-            )}
+
             
             {(signupStep === 1 || authStep !== 'credentials') && (
               <button 
@@ -848,76 +826,6 @@ export default function AuthPage() {
                 type="button"
                 onClick={handleCloseVerifyModal} 
                 className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
-              >
-                I Understand
-              </button>
-            </motion.div>
-          </div>
-        )}
-
-        {showGoogleHelp && (
-          <div className="fixed inset-0 bg-[#0c0214]/95 backdrop-blur-[8px] z-[2000] flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#140526] border border-accent/40 p-8 md:p-10 rounded-[2.5rem] w-full max-w-lg relative shadow-2xl text-center"
-            >
-              <button 
-                type="button"
-                onClick={() => setShowGoogleHelp(false)}
-                className="absolute top-4 right-5 bg-transparent border-none text-white/50 hover:text-accent text-2xl cursor-pointer transition-colors border-0 outline-none"
-                style={{ fontSize: '1.5rem' }}
-              >
-                &times;
-              </button>
-              
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-accent/30">
-                  <ShieldCheck className="w-8 h-8 text-accent animate-pulse" />
-                </div>
-                <h3 className="text-white text-md font-black uppercase tracking-[0.2em]">Google Sign-In Configuration Guide</h3>
-                <p className="text-accent text-[9px] font-black uppercase tracking-[0.15em] mt-1">For Firebase Authentication & Iframe Environments</p>
-              </div>
-
-              <div className="space-y-6 text-left text-white/80 text-[11px] uppercase tracking-wider leading-relaxed">
-                <div>
-                  <h4 className="text-accent font-black text-[10px] mb-2">1. Browser & Iframe Restrictions</h4>
-                  <p className="normal-case text-white/60">
-                    Your AI Studio preview runs inside a sandboxed cross-origin <strong>iframe</strong>. This blocks Google sign-in popups by default on some modern browsers (Safari, Chrome) to prevent tracking cookies.
-                  </p>
-                  <p className="normal-case text-accent font-bold mt-2">
-                    💡 Active Solution: Click the "Open in new tab" icon (located at the top right of the preview pane) to open the application in a standalone window, which handles Google Popups successfully!
-                  </p>
-                </div>
-
-                <div className="border-t border-white/5 pt-4">
-                  <h4 className="text-accent font-black text-[10px] mb-2">2. Dynamic Authorized Domains</h4>
-                  <p className="normal-case text-white/60 mb-2">
-                    Google Sign-In requires whitelisting the domains that trigger the authentication. Please add these specific domains to your Firebase Project settings:
-                  </p>
-                  <div className="bg-black/50 p-4 rounded-xl border border-white/5 font-mono text-[9px] select-all break-all text-white/90 lowercase space-y-1 select-text">
-                    <div className="bg-[#1a0c24]/80 p-1.5 rounded border border-white/5 select-all">ais-dev-u362g6pwlitfvhshvtvcfc-236492437407.europe-west3.run.app</div>
-                    <div className="text-accent/40 mt-1 uppercase font-sans text-[8px] tracking-widest font-bold text-center">and</div>
-                    <div className="bg-[#1a0c24]/80 p-1.5 rounded border border-white/5 select-all">ais-pre-u362g6pwlitfvhshvtvcfc-236492437407.europe-west3.run.app</div>
-                  </div>
-                  <p className="normal-case text-white/50 mt-2">
-                    Paste these inside the <strong>Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</strong> panel.
-                  </p>
-                </div>
-
-                <div className="border-t border-white/5 pt-4">
-                  <h4 className="text-accent font-black text-[10px] mb-2">3. Enable Google Provider</h4>
-                  <p className="normal-case text-white/60">
-                    Make sure Google is activated in your <strong>Firebase Console &gt; Authentication &gt; Sign-In Method &gt; Google</strong> page with correct OAuth Web Client credentials.
-                  </p>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={() => setShowGoogleHelp(false)} 
-                className="w-full mt-8 py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
               >
                 I Understand
               </button>

@@ -35,7 +35,7 @@ export function useSidebarCollapse() {
 }
 
 interface SidebarProps {
-  type: 'tenant' | 'landlord';
+  type: 'tenant' | 'landlord' | 'agent';
 }
 
 export default function Sidebar({ type }: SidebarProps) {
@@ -65,7 +65,18 @@ export default function Sidebar({ type }: SidebarProps) {
     { icon: Users, label: 'Tenants', path: '/dashboard/landlord/tenants' },
   ];
 
-  const menu = type === 'tenant' ? tenantMenu : landlordMenu;
+  const agentMenu = [
+    { icon: LayoutDashboard, label: 'Dashboard Overview', path: '/dashboard/agent' },
+    { icon: Users, label: 'My Landlords', path: '/dashboard/agent/landlords' },
+    { icon: Home, label: 'Managed Properties', path: '/dashboard/agent/properties' },
+  ];
+
+  let menu = tenantMenu;
+  if (type === 'landlord') {
+    menu = landlordMenu;
+  } else if (type === 'agent') {
+    menu = agentMenu;
+  }
 
   return (
     <>
