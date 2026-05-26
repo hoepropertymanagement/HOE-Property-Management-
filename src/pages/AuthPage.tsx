@@ -309,12 +309,7 @@ export default function AuthPage() {
       await loginWithGoogle();
     } catch (err: any) {
       console.error("Google sign-in login failed:", err);
-      // Give a helpful message if it was blocked by the browser in preview
-      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/popup-blocked') {
-        setError("Google window was closed or blocked. Try opening the app in a new tab using the icon at the top right.");
-      } else {
-        setError(err?.message || "Google Sign-In failed. Please try again.");
-      }
+      setError(err?.message || "Google Sign-In failed. Please try again.");
     } finally {
       setLoading(false);
     }

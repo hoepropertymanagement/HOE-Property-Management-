@@ -4,7 +4,8 @@
  */
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import React, { Suspense, ReactNode, ErrorInfo, Component } from 'react';
+import React, { Suspense, ReactNode, ErrorInfo, Component, useState, useEffect } from 'react';
+import { LogOut } from 'lucide-react';
 import Home from './pages/Home';
 import SearchResults from './pages/SearchResults';
 import PropertyDetail from './pages/PropertyDetail';
@@ -36,7 +37,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { SavedPropertiesProvider } from './context/SavedPropertiesContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
-import { useEffect } from 'react';
 
 function RedirectListener() {
   const { showNotification } = useNotification();
@@ -88,6 +88,52 @@ class ErrorBoundary extends React.Component<any, any> {
   }
 }
 
+function ImpersonationBanner() {
+  const [landlordName, setLandlordName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkImp = () => {
+      setLandlordName(localStorage.getItem('impersonated_landlord_name'));
+    };
+    checkImp();
+    const interval = setInterval(checkImp, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!landlordName) return null;
+
+  const handleExit = () => {
+    localStorage.removeItem('impersonated_landlord_id');
+    localStorage.removeItem('impersonated_landlord_name');
+    localStorage.removeItem('impersonated_landlord_email');
+    localStorage.removeItem('impersonated_landlord_phone');
+    window.location.href = '/dashboard/agent?tab=landlords';
+  };
+
+  return (
+    <div className="bg-teal-50 border-b border-teal-200 py-3 px-6 flex flex-col sm:flex-row items-center justify-between text-teal-900 text-xs font-semibold z-50 sticky top-20 gap-3">
+      <div className="flex items-center gap-2.5">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+        </span>
+        <span className="font-black uppercase tracking-[0.15em] text-[8px] sm:text-[9px] bg-teal-600 text-white px-2 py-0.5 rounded leading-none">
+          Agent Impersonation Active
+        </span>
+        <span>
+          Viewing or controlling the portfolio of <strong>{landlordName}</strong> as a managing agent.
+        </span>
+      </div>
+      <button
+        onClick={handleExit}
+        className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-full text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-sm hover:shadow-md"
+      >
+        <LogOut className="w-3 h-3" /> Return to Agent Portal
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Router>
@@ -98,6 +144,7 @@ export default function App() {
           <SavedPropertiesProvider>
             <div className="min-h-screen flex flex-col font-sans">
               <Navbar />
+              <ImpersonationBanner />
               <main className="flex-grow">
                 <ErrorBoundary>
                   <Suspense fallback={<div className="min-h-screen bg-secondary flex items-center justify-center">Loading...</div>}>
@@ -133,9 +180,9 @@ export default function App() {
                       <Route path="/dashboard/tenant/messages" element={<ProtectedRoute><Messages type="tenant" /></ProtectedRoute>} />
                       
                       {/* Agent Routes */}
-                      <Route path="/dashboard/agent" element={<ProtectedRoute><AgentDashboard tab="overview" /></ProtectedRoute>} />
-                      <Route path="/dashboard/agent/landlords" element={<ProtectedRoute><AgentDashboard tab="landlords" /></ProtectedRoute>} />
-                      <Route path="/dashboard/agent/properties" element={<ProtectedRoute><AgentDashboard tab="properties" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent" element={<ProtectedRoute requireAgent><AgentDashboard tab="overview" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent/landlords" element={<ProtectedRoute requireAgent><AgentDashboard tab="landlords" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent/properties" element={<ProtectedRoute requireAgent><AgentDashboard tab="properties" /></ProtectedRoute>} />
                       
                       {/* Fallbacks */}
                       <Route path="/tenant/*" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />

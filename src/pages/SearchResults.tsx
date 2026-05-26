@@ -278,10 +278,16 @@ export default function SearchResults() {
     });
 
     if (minPrice) {
-      filtered = filtered.filter(p => parseInt(p.price.replace(/[^\d]/g, '')) >= parseInt(minPrice));
+      filtered = filtered.filter(p => {
+        const val = p.price ? parseInt(String(p.price).replace(/[^\d]/g, '')) : 0;
+        return !isNaN(val) && val >= parseInt(minPrice);
+      });
     }
     if (maxPrice) {
-      filtered = filtered.filter(p => parseInt(p.price.replace(/[^\d]/g, '')) <= parseInt(maxPrice));
+      filtered = filtered.filter(p => {
+        const val = p.price ? parseInt(String(p.price).replace(/[^\d]/g, '')) : 0;
+        return !isNaN(val) && val <= parseInt(maxPrice);
+      });
     }
 
     if (minBeds) {
@@ -817,18 +823,19 @@ export default function SearchResults() {
                 />
                 <MapController center={mapCenter} radiusInMiles={radius} trigger={`${showMapMobile}-${viewMode}-${navbarHeight}`} />
                 
-                {/* Search Radius Circle Overlay - RESTORED and ENHANCED */}
-                <Circle 
-                  center={[mapCenter.lat, mapCenter.lng]}
-                  radius={radius * 1609.34} // convert miles to meters
-                  pathOptions={{
-                    color: '#D4AF37', // Gold brand color
-                    fillColor: '#D4AF37',
-                    fillOpacity: 0.25, // Increased visibility
-                    weight: 3,
-                    dashArray: '5, 10' // Slight dash for premium technical look
-                  }}
-                />
+                 {/* Search Radius Circle Overlay - RESTORED and ENHANCED */}
+                 <Circle 
+                   key={`circle-${mapCenter.lat}-${mapCenter.lng}-${radius}`}
+                   center={[mapCenter.lat, mapCenter.lng]}
+                   radius={radius * 1609.34} // convert miles to meters
+                   pathOptions={{
+                     color: '#D4AF37', // Gold brand color
+                     fillColor: '#D4AF37',
+                     fillOpacity: 0.25, // Increased visibility
+                     weight: 3,
+                     dashArray: '5, 10' // Slight dash for premium technical look
+                   }}
+                 />
 
                 {filteredProperties.map((property) => (
                   <Marker 

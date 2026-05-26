@@ -28,77 +28,43 @@ const BookViewingModal = ({
   property: Property | null,
   onConfirm: (data: { days: string[], times: string[], specific: string }) => void 
 }) => {
-  const [days, setDays] = useState<string[]>([]);
-  const [times, setTimes] = useState<string[]>([]);
-  const [specific, setSpecific] = useState('');
-
   if (!isOpen) return null;
-
-  const toggleDay = (d: string) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
-  const toggleTime = (t: string) => setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirm({ days, times, specific });
+    onConfirm({ days: [], times: [], specific: '' });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden animate-slideUp border border-primary/5">
         <div className="p-8 border-b border-primary/5 flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-serif italic text-primary">Book a Viewing</h3>
-            <p className="text-[10px] uppercase tracking-widest text-primary/40 font-bold mt-1">Request to see {property?.title}</p>
+            <h3 className="text-2xl font-serif italic text-primary">Automated Verification</h3>
+            <p className="text-[10px] uppercase tracking-widest text-primary/40 font-bold mt-1">Smart Viewing Booking</p>
           </div>
           <button onClick={onClose} className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors">
             <X className="w-5 h-5 text-primary/60" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Preferred Days</label>
-            <div className="flex flex-wrap gap-2">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => toggleDay(day)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${days.includes(day) ? 'bg-accent text-white' : 'bg-primary/5 text-primary/60 hover:bg-primary/10'}`}
-                >
-                  {day}
-                </button>
-              ))}
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto text-accent shadow-lg shadow-accent/10">
+              <Calendar className="w-8 h-8" />
             </div>
-          </div>
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Preferred Time Options</label>
-            <div className="flex flex-wrap gap-2">
-              {['Morning', 'Afternoon', 'Evening'].map(time => (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => toggleTime(time)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${times.includes(time) ? 'bg-accent text-white' : 'bg-primary/5 text-primary/60 hover:bg-primary/10'}`}
-                >
-                  {time}
-                </button>
-              ))}
+            <h4 className="text-lg font-serif italic text-primary font-bold">House of EDen Auto-Verify</h4>
+            <p className="text-xs text-primary/60 leading-relaxed">
+              We have upgraded your booking experience. We will automate and send an interactive **Book and Reject Chat Verification** card directly to the listing owner.
+            </p>
+            <div className="p-3 bg-secondary rounded-xl text-[10px] text-accent font-bold uppercase tracking-wider">
+              Pick This Week, Next Week or Any Time directly in chat
             </div>
-          </div>
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-primary block mb-3">Or specific Date & Time</label>
-            <input 
-              type="datetime-local" 
-              value={specific}
-              onChange={(e) => setSpecific(e.target.value)}
-              className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-3 px-4 text-sm outline-none focus:border-accent focus:bg-white transition-all text-primary"
-            />
           </div>
           <button
             type="submit"
-            className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all"
+            className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all shadow-lg active:scale-[0.98] duration-100"
           >
-            Send Viewing Request
+            Confirm & Send Chat Card
           </button>
         </form>
       </div>
@@ -773,7 +739,7 @@ export default function PropertyDetail() {
           {/* Landlord Card - Simplified to show only the Landlord Name */}
           <div className="lg:col-start-3">
             <div className="sticky top-40 bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
-              <div className="flex items-center gap-4 mb-8 pb-4 border-b border-primary/5">
+              <div className="flex items-center gap-4 pb-4 border-b border-primary/5">
                 <div>
                   <span className="text-[9px] text-accent uppercase tracking-[0.25em] font-bold block mb-1">Assigned Listing Owner</span>
                   <h4 className="font-serif italic text-2xl font-bold leading-tight text-primary">
@@ -781,24 +747,12 @@ export default function PropertyDetail() {
                   </h4>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                 <button 
-                  onClick={() => setShowViewingModal(true)}
-                  className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all flex items-center justify-center gap-2"
-                 >
-                   <Calendar className="w-4 h-4" />
-                   Book a Viewing
-                 </button>
-                 <button 
-                  onClick={handleMessageLandlord}
-                  disabled={isMessaging}
-                  className="w-full py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                 >
-                  {isMessaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                  Chat with Owner
-                </button>
-              </div>
+              <p className="text-[10px] text-primary/40 font-bold uppercase tracking-widest mt-4">
+                Available Online
+              </p>
+              <p className="text-xs text-primary/50 mt-1">
+                To start verification or secure a viewing slot, please use the main premium message and booking console at the top of the details panel.
+              </p>
             </div>
           </div>
         </div>

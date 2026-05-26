@@ -70,10 +70,23 @@
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["Live", "Draft", "Let Agreed", "Paused", "Archived"] },
         "landlordId": { "type": "string" },
+        "created_by": { "type": "string", "description": "UID of the agent/creator of this property" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "price", "status", "landlordId"]
+    },
+    "AgentLandlord": {
+      "title": "AgentLandlord",
+      "description": "A landlord client managed by an agent.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "phone"]
     }
   },
   "firestore": {
@@ -84,6 +97,10 @@
     "/users/{userId}/favorites/{propertyId}": {
       "schema": "Favorite",
       "description": "Stores user favorite properties."
+    },
+    "/users/{userId}/landlords/{landlordId}": {
+      "schema": "AgentLandlord",
+      "description": "Stores landlord rosters managed by this agent."
     },
     "/properties/{propertyId}": {
       "schema": "Property",

@@ -79,8 +79,9 @@ const ViewingRequestWidget = ({
   isCurrentUser: boolean,
   onUpdate: (msgId: string, newPayload: ViewingPayload) => void
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editDate, setEditDate] = useState('');
+  const [choosingDate, setChoosingDate] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState<'this_week' | 'next_week' | 'any_time'>('this_week');
+  const [customDateTime, setCustomDateTime] = useState('');
 
   let payload: ViewingPayload | null = null;
   try {
@@ -92,128 +93,213 @@ const ViewingRequestWidget = ({
 
   if (!payload) return <p>{message.text}</p>;
 
-  const handleConfirm = () => {
-    if (!payload) return;
-    if (isEditing && editDate) {
-      onUpdate(message.id, { ...payload, status: 'confirmed', confirmedDateTime: editDate, isEdited: true });
-    } else {
-      // Just confirming as is, but we need a date. 
-      // If there's a specific date, we use that.
-      onUpdate(message.id, { ...payload, status: 'confirmed', confirmedDateTime: editDate || payload.specificDate });
-    }
-    setIsEditing(false);
+  const handleBookVerifyClick = () => {
+    setChoosingDate(true);
   };
 
   const handleDecline = () => {
     if (!payload) return;
-    onUpdate(message.id, { ...payload, status: 'declined' });
+    onUpdate(message.id, { 
+      ...payload, 
+      status: 'declined' 
+    });
+  };
+
+  const handleSelectSlot = (slotText: string) => {
+    if (!payload) return;
+    onUpdate(message.id, { 
+      ...payload, 
+      status: 'confirmed', 
+      confirmedDateTime: slotText,
+      isEdited: !isCurrentUser
+    });
+    setChoosingDate(false);
+  };
+
+  const handleConfirmCustom = () => {
+    if (!payload || !customDateTime) return;
+    const formatted = new Date(customDateTime).toLocaleString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    onUpdate(message.id, { 
+      ...payload, 
+      status: 'confirmed', 
+      confirmedDateTime: formatted,
+      isEdited: !isCurrentUser
+    });
+    setChoosingDate(false);
   };
 
   const isPending = payload.status === 'pending';
   const isConfirmed = payload.status === 'confirmed';
   const isDeclined = payload.status === 'declined';
 
+  // Predefined slots for This Week
+  const thisWeekSlots = [
+    "Wednesday 27 May - 10:00 AM",
+    "Wednesday 27 May - 2:00 PM",
+    "Friday 29 May - 11:30 AM",
+    "Saturday 30 May - 3:00 PM"
+  ];
+
+  // Predefined slots for Next Week
+  const nextWeekSlots = [
+    "Next Monday 1 June - 10:30 AM",
+    "Next Wednesday 3 June - 2:30 PM",
+    "Next Thursday 4 June - 9:00 AM",
+    "Next Friday 5 June - 3:00 PM"
+  ];
+
   return (
-    <div className="w-full max-w-sm rounded-[1.5rem] border border-primary/10 overflow-hidden text-left bg-white text-primary">
-      <div className="bg-accent/10 px-4 py-3 flex items-center gap-3 border-b border-accent/10">
-        <div className="p-2 bg-accent/20 rounded-full text-accent">
-          <Calendar className="w-4 h-4" />
+    <div className="w-full max-w-sm rounded-[2rem] border border-primary/10 overflow-hidden text-left bg-white text-primary shadow-xl">
+      <div className="bg-accent/10 px-5 py-4 flex items-center justify-between border-b border-accent/10">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-accent/20 rounded-xl text-accent shadow-sm">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest text-accent leading-tight">Viewing Verification</h4>
+            <span className="text-[10px] uppercase font-bold text-primary/40 block mt-0.5">
+              {isConfirmed ? 'Booking Confirmed' : isDeclined ? 'Viewing Declined' : 'Action Required'}
+            </span>
+          </div>
         </div>
-        <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-accent leading-tight">Viewing Request</h4>
-          <span className="text-[10px] uppercase font-bold text-primary/40 block">
-            {isConfirmed ? 'Confirmed' : isDeclined ? 'Declined' : 'Pending Review'}
+        {isPending && !choosingDate && (
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-accent"></span>
           </span>
-        </div>
+        )}
       </div>
       
-      <div className="p-4 space-y-4">
-        {payload.confirmedDateTime ? (
-          <div className="p-4 bg-green-500/10 rounded-2xl border border-green-500/20">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-700 block mb-1">Confirmed Time</span>
-            <span className="text-sm font-bold text-green-800">{new Date(payload.confirmedDateTime).toLocaleString()}</span>
-            {payload.isEdited && <span className="text-[9px] font-bold text-green-700/60 block mt-1">(Edited by Landlord)</span>}
+      <div className="p-5 space-y-4">
+        {isConfirmed ? (
+          <div className="p-5 bg-green-500/10 rounded-2xl border border-green-500/20 text-center space-y-3">
+             <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
+               <Check className="w-6 h-6" />
+             </div>
+             <div>
+               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-700 block mb-1">Confirmed Viewing Appointment</span>
+               <span className="text-sm font-bold text-green-800 block p-2.5 bg-green-500/5 rounded-xl border border-green-500/10">
+                 {payload.confirmedDateTime}
+               </span>
+               <p className="text-[10px] text-green-700/60 font-bold uppercase tracking-wider mt-2">Verified secure by HOE Property Management</p>
+             </div>
+          </div>
+        ) : isDeclined ? (
+          <div className="p-5 bg-red-500/10 rounded-2xl border border-red-500/20 text-center space-y-2">
+             <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-700 flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
+               <XCircle className="w-6 h-6" />
+             </div>
+             <div>
+               <span className="text-[10px] font-black uppercase tracking-[0.28em] text-red-600 block">Request Rejected</span>
+               <p className="text-xs text-red-700/70 mt-1">This viewing verification has been declined.</p>
+             </div>
+          </div>
+        ) : isPending && !choosingDate ? (
+          <div className="space-y-4">
+            <p className="text-xs text-primary/70 leading-relaxed font-semibold">
+               An automated booking verification card has been generated. Press **Book / Verify** to accept and select a specific viewing date from our availability list.
+            </p>
+            <div className="pt-2 flex flex-col gap-2">
+              <button 
+                onClick={handleBookVerifyClick}
+                className="w-full bg-accent text-primary hover:bg-accent-hover font-bold py-3 px-4 rounded-xl shadow-lg shadow-accent/15 transition-all text-xs font-black text-center uppercase tracking-widest flex items-center justify-center gap-2 active:scale-[0.98] duration-100"
+              >
+                <Check className="w-4 h-4" />
+                Book / Verify
+              </button>
+              <button 
+                onClick={handleDecline}
+                className="w-full bg-primary/5 hover:bg-primary/10 text-primary/50 font-bold py-2.5 px-4 rounded-xl border border-primary/5 transition-all text-[10px] font-black uppercase tracking-widest text-center"
+              >
+                Reject / Decline Request
+              </button>
+            </div>
           </div>
         ) : (
-          <>
-            {payload.days.length > 0 && (
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Preferred Days</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {payload.days.map((d: string) => (
-                    <span key={d} className="px-2.5 py-1 bg-primary/5 rounded-md text-[10px] font-bold">{d}</span>
-                  ))}
-                </div>
+          /* choosingDate state and selecting a slot */
+          <div className="space-y-4 animate-fadeIn">
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-2 cursor-default">1. Choose Week Option</span>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-secondary rounded-xl border border-primary/5">
+                {(['this_week', 'next_week', 'any_time'] as const).map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setSelectedWeek(w)}
+                    className={`py-2 px-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all truncate ${selectedWeek === w ? 'bg-primary text-secondary' : 'text-primary/50 hover:bg-primary/5'}`}
+                  >
+                    {w === 'this_week' ? 'This Week' : w === 'next_week' ? 'Next Week' : 'Any Time'}
+                  </button>
+                ))}
               </div>
-            )}
-            {payload.times.length > 0 && (
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Time of Day</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {payload.times.map((t: string) => (
-                    <span key={t} className="px-2.5 py-1 bg-primary/5 rounded-md text-[10px] font-bold">{t}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {payload.specificDate && (
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-1.5">Specific Suggestion</span>
-                <span className="text-xs font-medium bg-primary/5 px-3 py-1.5 rounded-lg inline-block">
-                  {new Date(payload.specificDate).toLocaleString()}
-                </span>
-              </div>
-            )}
-          </>
-        )}
+            </div>
 
-        {/* Actions for Landlord */}
-        {!isCurrentUser && isPending && (
-          <div className="pt-4 border-t border-primary/5 space-y-3">
-            {isEditing ? (
-              <div className="bg-primary/5 p-3 rounded-2xl space-y-3 animate-fadeIn">
-                <div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 block mb-1 cursor-default">Review or Edit Time</span>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-2 cursor-default">2. Select Your Viewing Slot</span>
+              
+              {selectedWeek === 'this_week' && (
+                <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+                  {thisWeekSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => handleSelectSlot(slot)}
+                      className="w-full px-4 py-3 bg-secondary hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-primary/5 flex items-center justify-between group active:scale-[0.99] duration-100"
+                    >
+                      <span className="truncate pr-2">{slot}</span>
+                      <Calendar className="w-3.5 h-3.5 text-primary/20 group-hover:text-primary/70 transition-colors shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selectedWeek === 'next_week' && (
+                <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+                  {nextWeekSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      onClick={() => handleSelectSlot(slot)}
+                      className="w-full px-4 py-3 bg-secondary hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-primary/5 flex items-center justify-between group active:scale-[0.99] duration-100"
+                    >
+                      <span className="truncate pr-2">{slot}</span>
+                      <Calendar className="w-3.5 h-3.5 text-primary/20 group-hover:text-primary/70 transition-colors shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selectedWeek === 'any_time' && (
+                <div className="bg-secondary/40 p-3 rounded-2xl border border-primary/5 space-y-3">
                   <input 
                     type="datetime-local" 
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full bg-white border border-primary/10 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-accent"
+                    value={customDateTime}
+                    onChange={(e) => setCustomDateTime(e.target.value)}
+                    className="w-full bg-white border border-primary/10 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                   />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleConfirm} className="flex-1 py-2 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 transition-colors">
-                    Confirm Viewing
-                  </button>
-                  <button onClick={() => setIsEditing(false)} className="px-3 py-2 bg-primary/10 text-primary/60 rounded-xl text-xs font-bold hover:bg-primary/20 transition-colors">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-[9px] text-primary/40 uppercase font-black tracking-widest text-center cursor-default">Respond to Viewing Request</p>
-                <div className="flex gap-2">
-                  <button onClick={() => {
-                    setEditDate(payload?.specificDate || '');
-                    setIsEditing(true);
-                  }} className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-700 py-2.5 rounded-xl border border-green-500/20 transition-colors flex justify-center items-center gap-1.5 text-xs font-bold">
-                    <Check className="w-3.5 h-3.5" /> Yes, Review Time
-                  </button>
-                  <button onClick={handleDecline} className="flex-1 bg-[#ff4444]/10 hover:bg-[#ff4444]/20 text-[#ff4444] py-2.5 rounded-xl border border-[#ff4444]/20 transition-colors flex justify-center items-center gap-1.5 text-xs font-bold">
-                    <XCircle className="w-3.5 h-3.5" /> No, Decline
+                  <button 
+                    onClick={handleConfirmCustom}
+                    disabled={!customDateTime}
+                    className="w-full py-2.5 bg-primary disabled:opacity-55 text-secondary rounded-xl text-xs font-bold hover:bg-black transition-colors uppercase tracking-widest text-center"
+                  >
+                    Confirm Custom Time
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
 
-        {isCurrentUser && isPending && (
-          <div className="pt-3 border-t border-primary/5 text-center">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-accent flex items-center justify-center gap-1.5">
-              <Clock className="w-3 h-3 animate-pulse" /> Awaiting Landlord Response
-            </span>
+            <div className="pt-2 border-t border-primary/5">
+              <button 
+                type="button"
+                onClick={() => setChoosingDate(false)}
+                className="w-full text-center text-[10px] uppercase font-black tracking-widest text-primary/40 hover:text-primary transition-colors py-1"
+              >
+                Back to Options
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -771,6 +857,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                               isCurrentUser={msg.senderId === user.uid} 
                               onUpdate={async (msgId, newPayload) => {
                                 try {
+                                  // Update state locally immediately for anti-lag (Satisfies Performance constraint)
+                                  setMessages(prev => prev.map(m => m.id === msgId ? { ...m, text: `[VIEWING_REQUEST]: ${JSON.stringify(newPayload)}` } : m));
+                                  
                                   await supabase.from('messages').update({
                                     body: `[VIEWING_REQUEST]: ${JSON.stringify(newPayload)}`
                                   }).eq('id', msgId);

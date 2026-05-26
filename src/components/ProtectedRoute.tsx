@@ -6,9 +6,12 @@ import { Loader2 } from 'lucide-react';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireLandlord?: boolean;
+  requireAgent?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireLandlord = false }: ProtectedRouteProps) {
+const allowedAgentEmails = ['twighlightani113@gmail.com', 'ann.imaginator@gmail.com', 'nkeface14@gmail.com'];
+
+export default function ProtectedRoute({ children, requireLandlord = false, requireAgent = false }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
@@ -28,6 +31,13 @@ export default function ProtectedRoute({ children, requireLandlord = false }: Pr
   // If role is missing, redirect to dashboard gateway for onboarding
   if (!profile?.role && location.pathname !== '/dashboard') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (requireAgent) {
+    const userEmail = user?.email || profile?.email || '';
+    if (!userEmail || !allowedAgentEmails.includes(userEmail.toLowerCase())) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   if (requireLandlord && profile?.role !== 'landlord' && profile?.role !== 'both') {

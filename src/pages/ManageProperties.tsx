@@ -27,6 +27,7 @@ export default function ManageProperties() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const landlordId = localStorage.getItem('impersonated_landlord_id') || (user ? user.uid : '');
   const [selectedPreviewProperty, setSelectedPreviewProperty] = useState<Property | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -42,7 +43,7 @@ export default function ManageProperties() {
         // Query from Firestore matching logged-in user explicitly
         const q = query(
           collection(db, 'properties'), 
-          where('landlordId', '==', user.uid)
+          where('landlordId', '==', landlordId)
         );
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
@@ -53,7 +54,7 @@ export default function ManageProperties() {
           const { data: sbData, error: sbError } = await supabase
             .from('properties')
             .select('*')
-            .eq('landlord_id', user.uid);
+            .eq('landlord_id', landlordId);
           
           if (!sbError && sbData) {
             sbProps = sbData.map((item: any) => ({
@@ -66,7 +67,7 @@ export default function ManageProperties() {
               beds: item.beds || item.bedrooms || 0,
               baths: item.baths || item.bathrooms || 0,
               status: item.status || 'Draft',
-              landlordId: item.landlord_id || user.uid,
+              landlordId: item.landlord_id || landlordId,
               views: item.views || 0,
               contactNumber: item.contact_number || '',
               councilTax: item.council_tax || 'Band A',
@@ -91,7 +92,7 @@ export default function ManageProperties() {
           if (!merged.some(p => p.id === mockItem.id)) {
             merged.push({
               ...mockItem,
-              landlordId: user.uid
+              landlordId: landlordId
             });
           }
         });
@@ -99,14 +100,14 @@ export default function ManageProperties() {
       } catch (err) {
         console.error("Error fetching properties:", err);
         // Fallback to system-defined mock properties with in-memory landlordId mapping
-        const fallback = mockProperties.map(m => ({ ...m, landlordId: user.uid }));
+        const fallback = mockProperties.map(m => ({ ...m, landlordId: landlordId }));
         setProperties(fallback);
       } finally {
         setLoading(false);
       }
     }
     fetchProperties();
-  }, [user]);
+  }, [user, landlordId]);
 
   const handleUpdateStatus = async (propertyId: string, newStatus: string) => {
     try {

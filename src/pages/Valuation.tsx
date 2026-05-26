@@ -25,6 +25,7 @@ import { Property, mockProperties } from '../constants/mockData';
 export default function Valuation() {
   const isCollapsed = useSidebarCollapse();
   const { user } = useAuth();
+  const landlordId = localStorage.getItem('impersonated_landlord_id') || (user ? user.uid : '');
   const [properties, setProperties] = useState<Property[]>([]);
   const [realViews, setRealViews] = useState<{ propertyId: string; propertyTitle: string; timestamp: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export default function Valuation() {
         // 1. Fetch landlord's properties
         const qProperties = query(
           collection(db, 'properties'), 
-          where('landlordId', '==', user.uid)
+          where('landlordId', '==', landlordId)
         );
         const querySnapshot = await getDocs(qProperties);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
@@ -49,7 +50,7 @@ export default function Valuation() {
           if (!merged.some(p => p.id === mockItem.id)) {
             merged.push({
               ...mockItem,
-              landlordId: user.uid
+              landlordId: landlordId
             });
           }
         });
@@ -58,7 +59,7 @@ export default function Valuation() {
         // 2. Fetch logged views
         const qViews = query(
           collection(db, 'propertyViews'),
-          where('landlordId', '==', user.uid)
+          where('landlordId', '==', landlordId)
         );
         const viewsSnapshot = await getDocs(qViews);
         const loggedViews = viewsSnapshot.docs.map(doc => doc.data() as { propertyId: string; propertyTitle: string; timestamp: string });
@@ -66,14 +67,14 @@ export default function Valuation() {
       } catch (err) {
         console.error("Error fetching analytics data:", err);
         // Robust fallback
-        const fallback = mockProperties.map(m => ({ ...m, landlordId: user.uid }));
+        const fallback = mockProperties.map(m => ({ ...m, landlordId: landlordId }));
         setProperties(fallback);
       } finally {
         setLoading(false);
       }
     }
     fetchAnalyticsData();
-  }, [user]);
+  }, [user, landlordId]);
 
   // Helper/Robust parser for monthly rent values
   const parseRent = (rentStr?: string) => {

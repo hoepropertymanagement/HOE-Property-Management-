@@ -27,6 +27,18 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isAgentOfLandlord(landlordId) {
+      return request.auth != null && (landlordId is string) && landlordId.size() > 0 && exists(/databases/$(database)/documents/users/$(request.auth.uid)/landlords/$(landlordId));
+    }
+
+    function isValidAgentLandlord(data) {
+      return data.keys().hasAll(['name', 'email', 'phone', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() <= 30 &&
+             data.createdAt is timestamp;
+    }
+
     // --- User Profile Rules ---
     function isValidUser(data) {
       let requiredFields = ['uid', 'name', 'isPublicContact', 'showPhoneNumber', 'createdAt', 'updatedAt'];
@@ -62,6 +74,13 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidFavorite(incoming()) && incoming().createdAt == request.time;
         allow update: if isOwner(userId) && isValidFavorite(incoming()) && incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /landlords/{landlordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAgentLandlord(incoming()) && incoming().createdAt == request.time;
+        allow update: if isOwner(userId) && isValidAgentLandlord(incoming()) && incoming().createdAt == existing().createdAt;
         allow delete: if isOwner(userId);
       }
     }
@@ -111,28 +130,35 @@ service cloud.firestore {
              data.title is string && data.title.size() > 0 &&
              (data.price is string || (data.price is number && data.price >= 0)) &&
              data.status in ['Live', 'Draft', 'Let Agreed', 'Paused', 'Archived'] &&
-             (request.auth == null || data.landlordId == request.auth.uid) &&
+             (request.auth == null || data.landlordId == request.auth.uid || isAgentOfLandlord(data.landlordId) || ('created_by' in data && data.created_by == request.auth.uid)) &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp &&
              (!('description' in data) || (data.description is string && data.description.size() <= 10000)) &&
              (!('location' in data) || (data.location is string && data.location.size() <= 500)) &&
              (!('type' in data) || (data.type is string && data.type.size() <= 100)) &&
-             (!('images' in data) || (data.images is list && data.images.size() <= 25));
+             (!('images' in data) || (data.images is list && data.images.size() <= 25)) &&
+             (!('created_by' in data) || (data.created_by is string && data.created_by.size() <= 128));
     }
 
     match /properties/{propertyId} {
       allow get: if true;
       allow list: if resource.data.status == 'Live' || 
-                   (request.auth == null || resource.data.landlordId == request.auth.uid);
+                   (request.auth == null || 
+                    ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
+                    ('created_by' in resource.data && resource.data.created_by == request.auth.uid));
       allow create: if isValidProperty(incoming()) && 
                     incoming().createdAt == request.time &&
                     incoming().updatedAt == request.time;
-      allow update: if (request.auth == null || resource.data.landlordId == request.auth.uid) &&
+      allow update: if (request.auth == null || 
+                        ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
+                        ('created_by' in resource.data && resource.data.created_by == request.auth.uid)) &&
                     isValidProperty(incoming()) &&
-                    incoming().landlordId == existing().landlordId &&
-                    incoming().createdAt == existing().createdAt &&
+                    ('landlordId' in incoming() && 'landlordId' in existing() && incoming().landlordId == existing().landlordId) &&
+                    ('createdAt' in incoming() && 'createdAt' in existing() && incoming().createdAt == existing().createdAt) &&
                     incoming().updatedAt == request.time;
-      allow delete: if (request.auth == null || resource.data.landlordId == request.auth.uid);
+      allow delete: if (request.auth == null || 
+                        ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
+                        ('created_by' in resource.data && resource.data.created_by == request.auth.uid));
     }
 
     // --- Property Views Rules ---

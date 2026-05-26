@@ -371,8 +371,9 @@ export default function AddProperty() {
         images: formData.images,
         image: formData.images[0] || '',
         noImage: formData.noImage,
-        landlordId: user.uid,
-        landlordName: profile?.name || user.displayName || 'Landlord',
+        landlordId: localStorage.getItem('impersonated_landlord_id') || user.uid,
+        landlordName: localStorage.getItem('impersonated_landlord_name') || profile?.name || user.displayName || 'Landlord',
+        created_by: user.uid,
         updatedAt: serverTimestamp(),
         // Normalize search fields for fuzzy matching if needed later
         locationSearch: `${formData.location || ''} ${formData.title || ''}`.toLowerCase(),
@@ -450,8 +451,9 @@ export default function AddProperty() {
         images: formData.images,
         image: formData.images[0] || '',
         noImage: formData.noImage,
-        landlordId: user.uid,
-        landlordName: profile?.name || user.displayName || 'Landlord',
+        landlordId: localStorage.getItem('impersonated_landlord_id') || user.uid,
+        landlordName: localStorage.getItem('impersonated_landlord_name') || profile?.name || user.displayName || 'Landlord',
+        created_by: user.uid,
         updatedAt: serverTimestamp(),
         locationSearch: `${formData.location || ''} ${formData.title || ''}`.toLowerCase(),
         status: 'Draft'
