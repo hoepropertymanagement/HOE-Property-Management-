@@ -10,7 +10,7 @@ import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';

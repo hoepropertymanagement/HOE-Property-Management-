@@ -185,9 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
-      console.error("Google login redirect error:", error);
+      console.error("Google login popup error:", error);
       throw error;
     }
   };

@@ -7,7 +7,7 @@ import {
   User, Mail, Phone, MapPin, Shield, Map as MapIcon, 
   Settings as SettingsIcon, LogOut, Trash2, 
   ChevronRight, Save, Loader2, CheckCircle2,
-  Lock, Bell, Smartphone, Globe, Home, ArrowLeft
+  Lock, Bell, Smartphone, Globe, Home, ArrowLeft, Briefcase
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
