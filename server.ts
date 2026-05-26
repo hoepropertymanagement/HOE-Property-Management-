@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import firebaseConfig from "./firebase-applet-config.json";
 
 // Initialize Firebase Admin
@@ -27,6 +28,17 @@ const db = admin.apps.length ?
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Proxy Firebase Authentication system endpoints to Google/Firebase's hosting.
+  // This must be declared FIRST before any body-parsing middlewares (like express.json)
+  // to avoid interfering with proxied requests (particularly POST requests).
+  app.use(
+    "/__/auth",
+    createProxyMiddleware({
+      target: "https://nifty-momentum-c3n78.firebaseapp.com",
+      changeOrigin: true,
+    })
+  );
 
   app.use(express.json());
 
