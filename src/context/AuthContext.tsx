@@ -185,17 +185,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      // Try signInWithPopup first as it works cleanly without parent/iframe-redirect issues in sandbox
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("Successfully signed in with Google popup:", result.user);
-    } catch (popupError: any) {
-      console.warn("Google login popup failed, trying redirect as fallback:", popupError);
-      try {
-        await signInWithRedirect(auth, googleProvider);
-      } catch (redirectError: any) {
-        console.error("Google login redirect fallback also failed:", redirectError);
-        throw redirectError;
-      }
+      await signInWithRedirect(auth, googleProvider);
+    } catch (error: any) {
+      console.error("Google login redirect failed:", error);
+      throw error;
     }
   };
 
