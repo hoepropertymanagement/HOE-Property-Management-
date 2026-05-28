@@ -10,7 +10,8 @@ import firebaseConfig from '../../firebase-applet-config.json';
 // browser third-party cookie limitations during Google Sign-In.
 const isBrowser = typeof window !== 'undefined';
 const host = isBrowser ? window.location.hostname : '';
-const dynamicAuthDomain = (host && (host.endsWith('run.app') || host.includes('localhost') || host.includes('web.app')))
+const isAiStudioPreview = host && (host.includes('ais-pre-') || host.includes('ais-dev-'));
+const dynamicAuthDomain = (host && !isAiStudioPreview && (host.endsWith('run.app') || host.includes('localhost') || host.includes('web.app')))
   ? host
   : (firebaseConfig.authDomain || 'nifty-momentum-c3n78.firebaseapp.com');
 
