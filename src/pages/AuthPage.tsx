@@ -4,8 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone, ShieldCheck } from 'lucide-react';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber, getRedirectResult } from '../lib/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import OTPInput from '../components/OTPInput';
 import { supabase } from '../lib/supabase';
@@ -137,19 +135,6 @@ export default function AuthPage() {
       navigate('/', { replace: true });
     }
   }, [user, navigate, showSuccess, authStep]);
-
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          showNotification("Welcome back! Signed in with Google.", "gold");
-          navigate('/', { replace: true });
-        }
-      })
-      .catch((err) => {
-        console.error("Google redirect login error:", err);
-      });
-  }, [navigate, showNotification]);
 
   useEffect(() => {
     const hash = window.location.hash;

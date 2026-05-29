@@ -1,4 +1,4 @@
-import { auth } from './firebase';
+import { supabase } from './supabase';
 
 export enum OperationType {
   CREATE = 'create',
@@ -16,19 +16,28 @@ export interface FirestoreErrorInfo {
   authInfo: {
     userId?: string | null;
     email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export async function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  let userId: string | undefined;
+  let email: string | undefined;
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.user) {
+      userId = data.session.user.id;
+      email = data.session.user.email;
+    }
+  } catch (e) {
+    // Ignore error while fetching sessions
+  }
+
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
+      userId,
+      email,
     },
     operationType,
     path

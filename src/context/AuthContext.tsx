@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from '../lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { FirebaseUser } from '../lib/firebase';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
 import { supabase } from '../lib/supabase';
 
@@ -39,86 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
-    let isSupabasePrimary = false;
 
-    // Handle redirect result for Google Login
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          console.log("Successfully signed in with Google redirect:", result.user);
-        }
-      })
-      .catch((err) => {
-        console.error("Firebase redirect login error:", err);
-      });
-
-    // Listen to Firebase Auth
-    const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        isSupabasePrimary = false;
-        // Sign out of Supabase if Firebase is active
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.auth.signOut();
-        }
-
-        setUser(firebaseUser);
-        const docRef = doc(db, 'users', firebaseUser.uid);
-        try {
-          const docSnap = await getDoc(docRef);
-          if (!docSnap.exists()) {
-            const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'New User',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || '',
-              bio: '',
-              contactNumber: '',
-              isPublicContact: false,
-              showPhoneNumber: false,
-              showEmail: false,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            };
-            await setDoc(docRef, newProfile);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
-        }
-
-        if (unsubscribeProfile) unsubscribeProfile();
-        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
-          setLoading(false);
-        });
-      } else {
-        if (!isSupabasePrimary) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            setUser(null);
-            setProfile(null);
-            setLoading(false);
-          }
-        }
-      }
-    });
-
-    // Listen to Supabase Auth
+    // Listen to Supabase Auth ONLY
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`Supabase Auth event triggered: ${event}`);
       if (session?.user) {
-        isSupabasePrimary = true;
-        // Sign out of Firebase if Supabase triggers an active session
-        if (auth.currentUser) {
-          await signOut(auth);
-        }
-
         const sbUser = session.user;
         const isEmailConfirmed = !!sbUser.email_confirmed_at;
 
@@ -168,16 +92,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         });
       } else {
-        if (isSupabasePrimary) {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
+        setUser(null);
+        setProfile(null);
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = null;
         }
+        setLoading(false);
       }
     });
 
     return () => {
-      unsubscribeFirebase();
       subscription.unsubscribe();
       if (unsubscribeProfile) unsubscribeProfile();
     };
@@ -185,7 +110,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (error) {
+        throw error;
+      }
     } catch (error: any) {
       console.error("Google login redirect failed:", error);
       throw error;
@@ -193,7 +126,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await signOut(auth);
     await supabase.auth.signOut();
   };
 
