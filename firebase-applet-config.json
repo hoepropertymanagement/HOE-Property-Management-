@@ -1,10 +1,10 @@
 {
-  "projectId": "nifty-momentum-c3n78",
-  "appId": "1:1047527556630:web:296772eadb12809aba5737",
-  "apiKey": "AIzaSyAqRNbiDWkt5a5UqmjdeKCrBUuDPR9YVjA",
-  "authDomain": "nifty-momentum-c3n78.firebaseapp.com",
+  "projectId": "hoeprojectmanagement",
+  "appId": "1:183285581682:web:c735650221686bca1b7feb",
+  "apiKey": "AIzaSyBP2twLJZEV7yqcUa8oprqMliWkRNZF_EY",
+  "authDomain": "hoeprojectmanagement.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-f23cd63f-aed7-4800-a1ed-af0c956549ba",
-  "storageBucket": "nifty-momentum-c3n78.firebasestorage.app",
-  "messagingSenderId": "1047527556630",
+  "storageBucket": "hoeprojectmanagement.firebasestorage.app",
+  "messagingSenderId": "183285581682",
   "measurementId": ""
 }
