@@ -38,6 +38,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
+    let isRedirectHandling = true;
+
+    // Handle any pending redirect results
+    import('../lib/firebase').then(({ getRedirectResult, auth }) => {
+      getRedirectResult(auth).catch((error) => {
+        console.warn("Redirect sign-in error or cancelled:", error);
+      }).finally(() => {
+        isRedirectHandling = false;
+      });
+    });
 
     const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -93,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error("Google login failed:", error);
       throw error;

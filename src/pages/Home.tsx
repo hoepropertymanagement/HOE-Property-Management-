@@ -10,8 +10,7 @@ import PropertyCard from '../components/PropertyCard';
 import EnquiryForm from '../components/EnquiryForm';
 import { Property, mockProperties } from '../constants/mockData';
 import { db } from '../lib/firebase';
-import { collection, query as fireQuery, limit, getDocs, where } from 'firebase/firestore';
-import { supabase } from '../lib/supabase';
+import { collection, query as fireQuery, limit, getDocs, where, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function Home() {
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
@@ -32,50 +31,8 @@ export default function Home() {
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         
-        // Fetch from Supabase as well!
-        let sbFeatured: Property[] = [];
-        try {
-          const { data: sbData, error: sbError } = await supabase
-            .from('properties')
-            .select('*')
-            .eq('status', 'Live')
-            .limit(3);
-          
-          if (!sbError && sbData) {
-            sbFeatured = sbData.map((item: any) => ({
-              id: item.id,
-              title: item.title || item.name || 'Untitled Property',
-              description: item.description || '',
-              image: item.image || item.image_url || '',
-              images: item.images || [],
-              price: typeof item.price === 'number' ? `£${item.price.toLocaleString()}` : (item.price || ''),
-              beds: item.beds || item.bedrooms || 0,
-              bedrooms: item.beds || item.bedrooms || 0,
-              baths: item.baths || item.bathrooms || 0,
-              bathrooms: item.baths || item.bathrooms || 0,
-              status: item.status || 'Live',
-              landlordId: item.landlord_id || '',
-              views: item.views || 0,
-              contactNumber: item.contact_number || '',
-              councilTax: item.council_tax || 'Band A',
-              energyEfficiency: item.energy_efficiency || 'E',
-              environmentalImpact: item.environmental_impact || 'E',
-              location: item.location || '',
-              lat: typeof item.lat === 'number' ? item.lat : undefined,
-              lng: typeof item.lng === 'number' ? item.lng : undefined,
-            } as unknown as Property));
-          }
-        } catch (sbErr) {
-          console.warn("Silent Supabase featured properties fetch error:", sbErr);
-        }
-
         // Merge with system memory mock properties
         const merged = [...props];
-        sbFeatured.forEach(sbProp => {
-          if (!merged.some(p => p.id === sbProp.id)) {
-            merged.push(sbProp);
-          }
-        });
 
         mockProperties.slice(0, 3).forEach(mockItem => {
           if (!merged.some(p => p.id === mockItem.id)) {
@@ -137,8 +94,8 @@ export default function Home() {
 
     // Automated Silent Enquiry Routing Implementation
     try {
-      // 1. Direct Supabase Insert
-      const { error: sbError } = await supabase.from('enquiries').insert({
+      // 1. Direct Firestore Insert
+      await addDoc(collection(db, 'enquiries'), {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -146,31 +103,9 @@ export default function Home() {
         message: formData.enquiryText,
         property_address: `${formData.address1}${formData.county ? ', ' + formData.county : ''}, ${formData.city}, ${formData.postcode}`,
         request_type: formData.type,
-        source: 'Home Page Valuation Form'
+        source: 'Home Page Valuation Form',
+        createdAt: serverTimestamp()
       });
-
-      if (sbError) throw sbError;
-
-      // 2. Fallback to Invoke edge function directly from client
-      try {
-        await fetch("https://vlmqmmkenhzkcyqclswy.supabase.co/functions/v1/send-system-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            formType: "consultation",
-            name: formData.name,
-            userEmail: formData.email,
-            phone: formData.phone,
-            message: formData.enquiryText,
-            propertyDetails: `Request Type: ${formData.type}\nProperty Address: ${formData.address1}, ${formData.city}, ${formData.postcode}\nMarketing Consent: ${formData.consent ? "Yes" : "No"}`,
-            subject: `[HOE Enquiry] New Property Enquiry: ${formData.type} - ${formData.name}`
-          })
-        });
-      } catch (e) {
-        console.warn('Silent email edge function failing - captured in DB safely.', e);
-      }
 
       // Clear the input fields natively using form.reset() style state update
       setFormData({

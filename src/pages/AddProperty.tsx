@@ -17,7 +17,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { supabase } from '../lib/supabase';
 import { storage as firebaseStorage } from '../lib/firebase';
 import { ref as firebaseStorageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -212,44 +211,13 @@ export default function AddProperty() {
               const uniqueFileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
               
               try {
-                // Upload directly to the 'property-images' bucket
-                const { error } = await supabase.storage
-                  .from('property-images')
-                  .upload(uniqueFileName, compressedFile, {
-                    cacheControl: '3600',
-                    upsert: false
-                  });
-
-                if (error) {
-                  console.warn("Supabase Storage Upload Failed (falling back to Firebase Storage):", error);
-                  try {
-                    const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
-                    await uploadBytes(fRef, compressedFile);
-                    const downloadUrl = await getDownloadURL(fRef);
-                    resolve(downloadUrl);
-                  } catch (firebaseErr) {
-                    console.error("Firebase Storage Upload also failed:", firebaseErr);
-                    resolve(null);
-                  }
-                  return;
-                }
-
-                const { data: urlData } = supabase.storage
-                  .from('property-images')
-                  .getPublicUrl(uniqueFileName);
-                  
-                resolve(urlData.publicUrl);
-              } catch (err) {
-                console.warn("Exception during Supabase upload (falling back to Firebase Storage):", err);
-                try {
-                  const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
-                  await uploadBytes(fRef, compressedFile);
-                  const downloadUrl = await getDownloadURL(fRef);
-                  resolve(downloadUrl);
-                } catch (firebaseErr) {
-                  console.error("Firebase Storage Upload also failed:", firebaseErr);
-                  resolve(null);
-                }
+                const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+                await uploadBytes(fRef, compressedFile);
+                const downloadUrl = await getDownloadURL(fRef);
+                resolve(downloadUrl);
+              } catch (firebaseErr) {
+                console.error("Firebase Storage Upload failed:", firebaseErr);
+                resolve(null);
               }
             }, 'image/jpeg', quality);
           } else {
@@ -1118,17 +1086,16 @@ export default function AddProperty() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!user?.email) return;
+                    if (!user) return;
                     try {
-                      const { error: resendErr } = await supabase.auth.resend({
-                        type: 'signup',
-                        email: user.email,
-                        options: {
-                          emailRedirectTo: window.location.origin + '/auth'
-                        }
-                      });
-                      if (resendErr) throw resendErr;
-                      showNotification("Verification email resent!", "gold");
+                      const { sendEmailVerification } = await import('firebase/auth');
+                      const { auth } = await import('../lib/firebase');
+                      if (auth.currentUser) {
+                        await sendEmailVerification(auth.currentUser);
+                        showNotification("Verification email resent!", "gold");
+                      } else {
+                        showNotification("Failed to resend. Please login again.", "red");
+                      }
                     } catch (err: any) {
                       showNotification("Failed to resend. Please retry.", "red");
                     }

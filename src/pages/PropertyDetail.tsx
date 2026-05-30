@@ -9,11 +9,10 @@ import {
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import React, { useState, useEffect, useMemo } from 'react';
 import EnquiryForm from '../components/EnquiryForm';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, query as fireQuery, where as fireWhere, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Property, mockProperties } from '../constants/mockData';
 import { useNotification } from '../context/NotificationContext';
 
@@ -134,41 +133,6 @@ export default function PropertyDetail() {
 
         if (docSnap.exists()) {
           propData = { id: docSnap.id, ...docSnap.data() } as Property;
-        } else {
-          try {
-            const { data: sbProp, error: sbError } = await supabase
-              .from('properties')
-              .select('*')
-              .eq('id', id)
-              .maybeSingle();
-            
-            if (!sbError && sbProp) {
-              propData = {
-                id: sbProp.id,
-                title: sbProp.title || sbProp.name || 'Untitled Property',
-                description: sbProp.description || '',
-                image: sbProp.image || sbProp.image_url || '',
-                images: sbProp.images || [],
-                price: typeof sbProp.price === 'number' ? `£${sbProp.price.toLocaleString()}` : (sbProp.price || ''),
-                beds: sbProp.beds || sbProp.bedrooms || 0,
-                bedrooms: sbProp.beds || sbProp.bedrooms || 0,
-                baths: sbProp.baths || sbProp.bathrooms || 0,
-                bathrooms: sbProp.baths || sbProp.bathrooms || 0,
-                status: sbProp.status || 'Draft',
-                landlordId: sbProp.landlord_id || '',
-                views: sbProp.views || 0,
-                contactNumber: sbProp.contact_number || '',
-                councilTax: sbProp.council_tax || 'Band A',
-                energyEfficiency: sbProp.energy_efficiency || 'E',
-                environmentalImpact: sbProp.environmental_impact || 'E',
-                location: sbProp.location || '',
-                lat: typeof sbProp.lat === 'number' ? sbProp.lat : undefined,
-                lng: typeof sbProp.lng === 'number' ? sbProp.lng : undefined,
-              } as unknown as Property;
-            }
-          } catch (sbErr) {
-            console.warn("Silent Supabase fetch error in details:", sbErr);
-          }
         }
 
         if (propData) {
@@ -190,7 +154,6 @@ export default function PropertyDetail() {
           // Record a real-time property view event
           if (propData.landlordId) {
             try {
-              const { collection, addDoc } = await import('firebase/firestore');
               await addDoc(collection(db, 'propertyViews'), {
                 propertyId: id,
                 propertyTitle: propData.title || 'Untitled Property',
@@ -200,20 +163,6 @@ export default function PropertyDetail() {
             } catch (viewError) {
               console.error("Silent view log failed:", viewError);
             }
-          }
-
-          // Trigger Supabase RPC views counter increment (TASK 4)
-          try {
-            const { error: rpcErr } = await supabase.rpc('increment_property_views', { 
-              property_id: id 
-            });
-            if (rpcErr) {
-              console.warn("Supabase view increment RPC minor error:", rpcErr.message);
-            } else {
-              console.log("Supabase view counter incremented via RPC.");
-            }
-          } catch (sbErr) {
-            console.warn("Silent Supabase views increment fallback:", sbErr);
           }
         } else {
           // Fallback to system-defined mock properties in memory
@@ -326,24 +275,34 @@ export default function PropertyDetail() {
 
     setIsMessaging(true);
     try {
-      const { data, error } = await supabase.rpc('get_or_create_conversation', {
-        p_property_id: property.id,
-        p_participant_1: user.uid,
-        p_participant_2: property.landlordId,
-        p_created_by: user.uid // The user initiating the chat
+      // get or create conversation via Firestore
+      let conversationId = null;
+      const q = fireQuery(collection(db, 'conversations'), fireWhere('property_id', '==', property.id));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.participant_ids && data.participant_ids.includes(user.uid) && data.participant_ids.includes(property.landlordId)) {
+          conversationId = doc.id;
+        }
       });
 
-      if (error) {
-        console.error("Error from get_or_create_conversation RPC:", error);
-        throw error;
+      if (!conversationId) {
+        const newDocRef = await addDoc(collection(db, 'conversations'), {
+          property_id: property.id,
+          participant_ids: [user.uid, property.landlordId],
+          created_by: user.uid,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+          last_message: "",
+          last_message_at: serverTimestamp()
+        });
+        conversationId = newDocRef.id;
       }
-
-      const conversationId = data?.[0]?.conversation_id ?? data?.conversation_id ?? data;
 
       if (conversationId) {
         navigate(`/dashboard/tenant/messages?id=${conversationId}`);
       } else {
-        console.warn("No conversation ID returned from RPC");
+        console.warn("No conversation ID returned");
       }
     } catch (error) {
       console.error("Error starting conversation:", error);
@@ -361,15 +320,28 @@ export default function PropertyDetail() {
 
     setIsMessaging(true);
     try {
-      const { data: convData, error } = await supabase.rpc('get_or_create_conversation', {
-        p_property_id: property.id,
-        p_participant_1: user.uid,
-        p_participant_2: property.landlordId,
-        p_created_by: user.uid
+      let conversationId = null;
+      const q = fireQuery(collection(db, 'conversations'), fireWhere('property_id', '==', property.id));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.participant_ids && data.participant_ids.includes(user.uid) && data.participant_ids.includes(property.landlordId)) {
+          conversationId = doc.id;
+        }
       });
 
-      if (error) throw error;
-      const conversationId = convData?.[0]?.conversation_id ?? convData?.conversation_id ?? convData;
+      if (!conversationId) {
+        const newDocRef = await addDoc(collection(db, 'conversations'), {
+          property_id: property.id,
+          participant_ids: [user.uid, property.landlordId],
+          created_by: user.uid,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+          last_message: "",
+          last_message_at: serverTimestamp()
+        });
+        conversationId = newDocRef.id;
+      }
 
       if (conversationId) {
         const payload = JSON.stringify({
@@ -380,17 +352,17 @@ export default function PropertyDetail() {
         });
         const msgText = `[VIEWING_REQUEST]: ${payload}`;
 
-        const { error: msgErr } = await supabase.from('messages').insert({
+        await addDoc(collection(db, 'messages'), {
           conversation_id: conversationId,
           sender_id: user.uid,
-          body: msgText
+          body: msgText,
+          created_at: serverTimestamp()
         });
-        if (msgErr) throw msgErr;
 
-        await supabase.from('conversations').update({
+        await updateDoc(doc(db, 'conversations', conversationId), {
           last_message: '📅 Viewing Request',
-          last_message_at: new Date().toISOString()
-        }).eq('id', conversationId);
+          last_message_at: serverTimestamp()
+        });
 
         setShowViewingModal(false);
         navigate(`/dashboard/tenant/messages?id=${conversationId}`);

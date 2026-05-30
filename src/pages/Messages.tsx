@@ -16,12 +16,11 @@ import {
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import { db } from '../lib/firebase';
 import { 
-  collection, query, where, onSnapshot, orderBy, 
+  collection, query as fireQuery, where as fireWhere, onSnapshot, orderBy, 
   addDoc, serverTimestamp, doc, getDoc, updateDoc, 
-  setDoc, limit 
+  setDoc, limit, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
@@ -358,87 +357,66 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   useEffect(() => {
     if (!user) return;
 
-    let isSubscribed = true;
+    let unsubscribe: () => void;
 
-    const fetchConversations = async () => {
+    const setupConversationsListener = () => {
       try {
-        const { data: chatsData, error } = await supabase
-          .from('conversations')
-          .select('id, property_id, last_message, last_message_at, updated_at, pinned_by_users, pinned_message');
-
-        if (error) throw error;
-        
-        const { data: participantsData, error: partError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id, user_id');
-
-        if (partError) throw partError;
-        
-        const participantsByChat: Record<string, string[]> = participantsData.reduce((acc: any, row: any) => {
-          if (!acc[row.conversation_id]) acc[row.conversation_id] = [];
-          acc[row.conversation_id].push(row.user_id);
-          return acc;
-        }, {});
-
-        const formattedChats = await Promise.all((chatsData || []).map(async (chatDoc) => {
-          const participantIds = participantsByChat[chatDoc.id] || [];
-          const otherUserId = participantIds.find(id => id !== user.uid);
-          
-          let otherUser = null;
-          if (otherUserId) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', otherUserId));
-              if (userDoc.exists()) {
-                otherUser = userDoc.data();
+        const q = fireQuery(collection(db, 'conversations'), fireWhere('participant_ids', 'array-contains', user.uid));
+        unsubscribe = onSnapshot(q, async (snapshot) => {
+          const formattedChats = await Promise.all(snapshot.docs.map(async (docSnap) => {
+            const chatDoc = docSnap.data();
+            const participantIds = chatDoc.participant_ids || [];
+            const otherUserId = participantIds.find((id: string) => id !== user.uid);
+            
+            let otherUser = null;
+            if (otherUserId) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                if (userDoc.exists()) {
+                  otherUser = userDoc.data();
+                }
+              } catch (err) {
+                console.error("Error fetching other user profile:", err);
               }
-            } catch (err) {
-              console.error("Error fetching other user profile:", err);
             }
-          }
 
-          let parsedPinnedMessage = null;
-          if (chatDoc.pinned_message) {
-            try {
-              parsedPinnedMessage = typeof chatDoc.pinned_message === 'string' ? JSON.parse(chatDoc.pinned_message) : chatDoc.pinned_message;
-            } catch (e) {
-              parsedPinnedMessage = chatDoc.pinned_message;
+            let parsedPinnedMessage = null;
+            if (chatDoc.pinned_message) {
+              try {
+                parsedPinnedMessage = typeof chatDoc.pinned_message === 'string' ? JSON.parse(chatDoc.pinned_message) : chatDoc.pinned_message;
+              } catch (e) {
+                parsedPinnedMessage = chatDoc.pinned_message;
+              }
             }
-          }
 
-          return {
-            id: chatDoc.id,
-            propertyId: chatDoc.property_id || '',
-            participantIds,
-            lastMessage: chatDoc.last_message || '',
-            lastMessageAt: chatDoc.last_message_at ? new Date(chatDoc.last_message_at) : null,
-            pinnedByUsers: chatDoc.pinned_by_users || [],
-            pinnedMessage: parsedPinnedMessage,
-            otherUser
-          } as Chat;
-        }));
+            return {
+              id: docSnap.id,
+              propertyId: chatDoc.property_id || '',
+              participantIds,
+              lastMessage: chatDoc.last_message || '',
+              lastMessageAt: chatDoc.last_message_at?.toDate() || null,
+              pinnedByUsers: chatDoc.pinned_by_users || [],
+              pinnedMessage: parsedPinnedMessage,
+              otherUser
+            } as Chat;
+          }));
 
-        if (isSubscribed) {
           setChats(formattedChats);
           setLoading(false);
-        }
+        }, (err) => {
+          console.error("Failed to load conversations:", err);
+          setLoading(false);
+        });
       } catch (err) {
-        console.error("Failed to load conversations:", err);
-        if (isSubscribed) setLoading(false);
+        console.error("Error setting up conversation listener", err);
+        setLoading(false);
       }
     };
 
-    fetchConversations();
-
-    const channel = supabase
-      .channel('public:conversations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-        fetchConversations();
-      })
-      .subscribe();
+    setupConversationsListener();
 
     return () => {
-      isSubscribed = false;
-      supabase.removeChannel(channel);
+      if (unsubscribe) unsubscribe();
     };
   }, [user]);
 
@@ -448,51 +426,46 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
       return;
     }
 
-    let isSubscribed = true;
+    let unsubscribe: () => void;
 
-    const fetchMessages = async () => {
+    const setupMessagesListener = () => {
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('id, sender_id, body, created_at, image, document, document_name, document_type')
-          .eq('conversation_id', selectedChatId)
-          .order('created_at', { ascending: true })
-          .limit(100);
+        const q = fireQuery(
+          collection(db, 'messages'), 
+          fireWhere('conversation_id', '==', selectedChatId),
+          orderBy('created_at', 'asc'),
+          limit(100)
+        );
         
-        if (error) throw error;
-        
-        const msgs = (data || []).map(msg => ({
-          id: msg.id,
-          senderId: msg.sender_id,
-          text: msg.body || '',
-          createdAt: msg.created_at ? new Date(msg.created_at) : new Date(),
-          image: msg.image,
-          document: msg.document,
-          documentName: msg.document_name,
-          documentType: msg.document_type
-        }));
-        
-        if (isSubscribed) {
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const msgs = snapshot.docs.map(docSnap => {
+            const msg = docSnap.data();
+            return {
+              id: docSnap.id,
+              senderId: msg.sender_id,
+              text: msg.body || '',
+              createdAt: msg.created_at?.toDate() || new Date(),
+              image: msg.image,
+              document: msg.document,
+              documentName: msg.document_name,
+              documentType: msg.document_type
+            };
+          });
+          
           setMessages(msgs);
           setTimeout(scrollToBottom, 100);
-        }
+        }, (err) => {
+          console.error("Error fetching messages", err);
+        });
       } catch (err) {
-        console.error("Error fetching messages", err);
+        console.error("Error in message listener", err);
       }
     };
 
-    fetchMessages();
-
-    const channel = supabase
-      .channel(`public:messages:conversation_id=eq.${selectedChatId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${selectedChatId}` }, () => {
-        fetchMessages();
-      })
-      .subscribe();
+    setupMessagesListener();
 
     return () => {
-      isSubscribed = false;
-      supabase.removeChannel(channel);
+      if (unsubscribe) unsubscribe();
     };
   }, [selectedChatId, user]);
 
@@ -526,20 +499,20 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
         }
       }
 
-      const { error: insertError } = await supabase.from('messages').insert(messageData);
-      if (insertError) throw insertError;
+      await addDoc(collection(db, 'messages'), {
+        ...messageData,
+        created_at: serverTimestamp()
+      });
       
       const displayLastMsg = selectedAttachment 
         ? (selectedAttachment.isImage ? '📷 Image' : `📄 ${selectedAttachment.name}`) 
         : inputText;
 
       // Update last message in conversation
-      const { error: updateError } = await supabase.from('conversations').update({
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
         last_message: displayLastMsg,
-        last_message_at: new Date().toISOString()
-      }).eq('id', selectedChatId);
-
-      if (updateError) throw updateError;
+        last_message_at: serverTimestamp()
+      });
 
       setInputText('');
       setSelectedAttachment(null);
@@ -560,10 +533,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
       : [...currentPinned, user.uid];
       
     try {
-      const { error } = await supabase.from('conversations').update({
-        pinned_by_users: updatedPinned
-      }).eq('id', chatId);
-      if (error) throw error;
+      await updateDoc(doc(db, 'conversations', chatId), {
+        pinned_by_users: isPinned ? arrayRemove(user.uid) : arrayUnion(user.uid)
+      });
     } catch (err) {
       console.error("Failed to pin/unpin chat thread:", err);
     }
@@ -576,10 +548,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
       : (currentChat?.otherUser?.name || 'User');
       
     try {
-      const { error } = await supabase.from('conversations').update({
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
         pinned_message: { id: msgId, text, senderName }
-      }).eq('id', selectedChatId);
-      if (error) throw error;
+      });
     } catch (err) {
       console.error("Failed to pin message:", err);
     }
@@ -588,10 +559,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
   const handleUnpinMessage = async () => {
     if (!selectedChatId) return;
     try {
-      const { error } = await supabase.from('conversations').update({
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
         pinned_message: null
-      }).eq('id', selectedChatId);
-      if (error) throw error;
+      });
     } catch (err) {
       console.error("Failed to unpin message:", err);
     }
@@ -860,9 +830,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                                   // Update state locally immediately for anti-lag (Satisfies Performance constraint)
                                   setMessages(prev => prev.map(m => m.id === msgId ? { ...m, text: `[VIEWING_REQUEST]: ${JSON.stringify(newPayload)}` } : m));
                                   
-                                  await supabase.from('messages').update({
+                                  await updateDoc(doc(db, 'messages', msgId), {
                                     body: `[VIEWING_REQUEST]: ${JSON.stringify(newPayload)}`
-                                  }).eq('id', msgId);
+                                  });
                                 } catch (e) {
                                   console.error("Failed to update viewing request", e);
                                 }

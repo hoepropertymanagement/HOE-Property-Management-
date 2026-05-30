@@ -33,7 +33,6 @@ export default function AuthPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [showSetupGuide, setShowSetupGuide] = useState(false);
   
   const { loginWithGoogle, user } = useAuth();
   const { showNotification } = useNotification();
@@ -261,13 +260,7 @@ export default function AuthPage() {
       await loginWithGoogle();
     } catch (err: any) {
       console.error("Google sign-in login failed:", err);
-      const errMsg = err?.message || String(err);
-      if (errMsg.includes("auth/unauthorized-domain")) {
-        setError("This domain is not authorized for Google Sign-In. Please add it to your Firebase Console.");
-        setShowSetupGuide(true);
-      } else {
-        setError(errMsg || "Google Sign-In failed. Please try again.");
-      }
+      setError(err?.message || "Google Sign-In failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -736,58 +729,6 @@ export default function AuthPage() {
               </svg>
               Google Integration
             </button>
-
-            <button
-              onClick={() => setShowSetupGuide(!showSetupGuide)}
-              className="w-full mt-2 py-2 text-[10px] font-bold text-accent/80 hover:text-accent transition-colors flex items-center justify-center gap-1.5 uppercase tracking-wider"
-            >
-              <span>{showSetupGuide ? "Hide Guide" : "Trouble with Google? Setup Guide"}</span>
-              <span className="text-[8px]">{showSetupGuide ? "▲" : "▼"}</span>
-            </button>
-
-            <AnimatePresence>
-              {showSetupGuide && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-4 p-4 border border-accent/20 bg-accent/5 rounded-2xl text-left overflow-hidden"
-                >
-                  <h4 className="text-[11px] font-black uppercase tracking-wider text-accent mb-3 flex items-center gap-1.5">
-                    <span>🔑</span> Firebase Google Connection Setup
-                  </h4>
-                  <p className="text-[10px] text-white/70 leading-relaxed mb-4">
-                    The error means that <strong>Google OAuth is blocked for this preview domain</strong>. Whitelist the domain using these steps:
-                  </p>
-                  <ol className="space-y-3.5 text-[10px] text-white/80 leading-relaxed list-decimal pl-4">
-                    <li>
-                      <p className="font-medium text-white">Open the Firebase Console:</p>
-                      <p className="text-white/60 mt-0.5">
-                        Go to Authentication {'>'} Settings {'>'} Authorized Domains.
-                      </p>
-                    </li>
-                    <li>
-                      <p className="font-medium text-white">Add this Domain:</p>
-                      <div className="bg-black/40 border border-white/5 rounded px-2 py-1.5 font-mono text-[9px] text-[#D4AF37] break-all select-all my-1 select-text">
-                        {window.location.hostname}
-                      </div>
-                    </li>
-                    <li>
-                      <p className="font-medium text-white">Ensure Google Sign-In is Enabled:</p>
-                      <p className="text-white/60 mt-0.5">
-                        In Firebase Console, go to Authentication {'>'} Sign-in method section and make sure Google is enabled.
-                      </p>
-                    </li>
-                  </ol>
-                  <p className="text-[9px] text-accent/60 leading-relaxed mt-4 italic">
-                    Once added, trying Google Sign-In will instantly connect you!
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-
             
             {(signupStep === 1 || authStep !== 'credentials') && (
               <button 

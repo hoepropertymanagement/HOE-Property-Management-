@@ -23,7 +23,6 @@ import LocationSearch from '../components/LocationSearch';
 import PriceFilter from '../components/PriceFilter';
 import { db } from '../lib/firebase';
 import { collection, query as fireQuery, getDocs, where as fireWhere } from 'firebase/firestore';
-import { supabase } from '../lib/supabase';
 
 // Haversine formula to calculate distance in miles
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -191,49 +190,8 @@ export default function SearchResults() {
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         
-        // Query from Supabase too!
-        let sbLiveProps: Property[] = [];
-        try {
-          const { data: sbData, error: sbError } = await supabase
-            .from('properties')
-            .select('*')
-            .eq('status', 'Live');
-          
-          if (!sbError && sbData) {
-            sbLiveProps = sbData.map((item: any) => ({
-              id: item.id,
-              title: item.title || item.name || 'Untitled Property',
-              description: item.description || '',
-              image: item.image || item.image_url || '',
-              images: item.images || [],
-              price: typeof item.price === 'number' ? `£${item.price.toLocaleString()}` : (item.price || ''),
-              beds: item.beds || item.bedrooms || 0,
-              bedrooms: item.beds || item.bedrooms || 0,
-              baths: item.baths || item.bathrooms || 0,
-              bathrooms: item.baths || item.bathrooms || 0,
-              status: item.status || 'Live',
-              landlordId: item.landlord_id || '',
-              views: item.views || 0,
-              contactNumber: item.contact_number || '',
-              councilTax: item.council_tax || 'Band A',
-              energyEfficiency: item.energy_efficiency || 'E',
-              environmentalImpact: item.environmental_impact || 'E',
-              location: item.location || '',
-              lat: typeof item.lat === 'number' ? item.lat : undefined,
-              lng: typeof item.lng === 'number' ? item.lng : undefined,
-            } as unknown as Property));
-          }
-        } catch (sbErr) {
-          console.warn("Silent Supabase live fetch error:", sbErr);
-        }
-
         // Merge with system-defined mock properties so the core catalog never disappears
         const merged = [...props];
-        sbLiveProps.forEach(sbProp => {
-          if (!merged.some(p => p.id === sbProp.id)) {
-            merged.push(sbProp);
-          }
-        });
 
         mockProperties.forEach(mockItem => {
           if (!merged.some(p => p.id === mockItem.id)) {

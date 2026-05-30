@@ -17,8 +17,7 @@ import { cn } from '../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
-import { supabase } from '../lib/supabase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, query as fireQuery, where as fireWhere } from 'firebase/firestore';
 
 export default function ManageProperties() {
   const isCollapsed = useSidebarCollapse();
@@ -48,46 +47,8 @@ export default function ManageProperties() {
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         
-        // Query from Supabase explicitly filtering to show only properties belonging to the signed-in user
-        let sbProps: Property[] = [];
-        try {
-          const { data: sbData, error: sbError } = await supabase
-            .from('properties')
-            .select('*')
-            .eq('landlord_id', landlordId);
-          
-          if (!sbError && sbData) {
-            sbProps = sbData.map((item: any) => ({
-              id: item.id,
-              title: item.title || item.name || 'Untitled Property',
-              description: item.description || '',
-              image: item.image || item.image_url || '',
-              images: item.images || [],
-              price: item.price || 0,
-              beds: item.beds || item.bedrooms || 0,
-              baths: item.baths || item.bathrooms || 0,
-              status: item.status || 'Draft',
-              landlordId: item.landlord_id || landlordId,
-              views: item.views || 0,
-              contactNumber: item.contact_number || '',
-              councilTax: item.council_tax || 'Band A',
-              energyEfficiency: item.energy_efficiency || 'E',
-              environmentalImpact: item.environmental_impact || 'E',
-            } as unknown as Property));
-          }
-        } catch (sbErr) {
-          console.warn("Silent Supabase fetch error:", sbErr);
-        }
-
-        // Merge both properties lists
-        const merged = [...props];
-        sbProps.forEach(sbProp => {
-          if (!merged.some(p => p.id === sbProp.id)) {
-            merged.push(sbProp);
-          }
-        });
-
         // Merge with mock properties, dynamically assigning landlordId to current landlord
+        const merged = [...props];
         mockProperties.forEach(mockItem => {
           if (!merged.some(p => p.id === mockItem.id)) {
             merged.push({
