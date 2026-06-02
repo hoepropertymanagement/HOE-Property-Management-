@@ -57,7 +57,7 @@ export default function Footer() {
         <div className="pt-12 border-t border-[#c299ff]/30 flex flex-col md:flex-row justify-between items-center gap-12">
           <div className="text-center md:text-left flex-grow max-w-2xl space-y-3">
             <p className="text-lg text-[#c299ff] font-serif italic">
-              House of Eden Property Management
+              House of Eden Community Project
             </p>
             
             <p className="text-sm text-[#a3a3a3]">
@@ -76,8 +76,14 @@ export default function Footer() {
               Registered with the Information Commissioner's Office (ICO). Reference Number: <span className="font-mono bg-white/5 border border-white/15 px-2 py-0.5 rounded text-white text-xs">ZC154194</span>
             </p>
             
+            <div className="my-2">
+              <Link to="/fees" className="text-sm font-bold text-[#c299ff] hover:text-[#d4af37] transition-colors inline-flex items-center">
+                Transparent Fee Schedule (Landlords & Tenants)
+              </Link>
+            </div>
+            
             <p className="text-xs text-[#666666]">
-              &copy; 2026 HOE Management Services. All rights reserved.
+              &copy; {currentYear} House of Eden Community Project. All rights reserved.
             </p>
           </div>
 

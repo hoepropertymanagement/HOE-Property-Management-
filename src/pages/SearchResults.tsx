@@ -118,6 +118,11 @@ export default function SearchResults() {
   
   // Find initial map center based on query
   const getInitialCenter = () => {
+    const latParam = searchParams.get('lat');
+    const lngParam = searchParams.get('lng');
+    if (latParam && lngParam && !isNaN(parseFloat(latParam)) && !isNaN(parseFloat(lngParam))) {
+      return { lat: parseFloat(latParam), lng: parseFloat(lngParam) };
+    }
     if (initialQuery) {
       const cityData = CITY_COORDS[initialQuery.toLowerCase()];
       if (cityData) return cityData;
@@ -181,6 +186,32 @@ export default function SearchResults() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function resolveLocation() {
+      const latParam = searchParams.get('lat');
+      const lngParam = searchParams.get('lng');
+      if (initialQuery && (!latParam || !lngParam) && !CITY_COORDS[initialQuery.toLowerCase()]) {
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(initialQuery)}&countrycodes=gb&limit=1`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+              const lat = parseFloat(data[0].lat);
+              const lon = parseFloat(data[0].lon);
+              if (!isNaN(lat) && !isNaN(lon)) {
+                setMapCenter({ lat, lng: lon });
+                setMapZoom(14);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to resolve fallback coordinates", error);
+        }
+      }
+    }
+    resolveLocation();
+  }, [initialQuery, searchParams]);
 
   useEffect(() => {
     async function fetchProperties() {

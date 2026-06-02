@@ -28,6 +28,7 @@ import CookiePolicy from './pages/CookiePolicy';
 import Compliance from './pages/Compliance';
 import Contact from './pages/Contact';
 import ProfilePage from './pages/ProfilePage';
+import Fees from './pages/Fees';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CookieConsent from './components/CookieConsent';
@@ -162,6 +163,7 @@ export default function App() {
                       <Route path="/privacy" element={<PrivacyPolicy />} />
                       <Route path="/cookies" element={<CookiePolicy />} />
                       <Route path="/compliance" element={<Compliance />} />
+                      <Route path="/fees" element={<Fees />} />
                       
                       {/* Dashboard Routes */}
                       <Route path="/dashboard" element={<ProtectedRoute><DashboardGateway /></ProtectedRoute>} />

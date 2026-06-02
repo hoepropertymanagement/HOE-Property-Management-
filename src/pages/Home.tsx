@@ -19,6 +19,8 @@ export default function Home() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [queryTerm, setQueryTerm] = useState('');
+  const [queryLat, setQueryLat] = useState('');
+  const [queryLng, setQueryLng] = useState('');
 
   useEffect(() => {
     async function fetchFeatured() {
@@ -204,6 +206,10 @@ export default function Home() {
                   onChange={setQueryTerm}
                   onSelect={(data) => {
                     setQueryTerm(data.description);
+                    if (data.location) {
+                      setQueryLat(data.location.lat.toString());
+                      setQueryLng(data.location.lng.toString());
+                    }
                   }}
                   placeholder="Enter location, area or postcode..."
                   className="sm:col-span-2 md:col-span-12"
@@ -226,7 +232,7 @@ export default function Home() {
                 />
                 <div className="sm:col-span-2 md:col-span-4">
                   <Link 
-                    to={`/search?mode=${searchMode}&q=${encodeURIComponent(queryTerm)}&min=${minPrice}&max=${maxPrice}`}
+                    to={`/search?mode=${searchMode}&q=${encodeURIComponent(queryTerm)}&lat=${queryLat}&lng=${queryLng}&min=${minPrice}&max=${maxPrice}`}
                     className="w-full bg-accent text-primary h-full py-4 md:py-5 rounded-2xl font-bold uppercase tracking-widest text-[10px] md:text-xs hover:bg-accent-hover transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
                   >
                     Find Properties
