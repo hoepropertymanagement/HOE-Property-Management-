@@ -185,6 +185,7 @@ export default function App() {
                       <Route path="/dashboard/agent" element={<ProtectedRoute requireAgent><AgentDashboard tab="overview" /></ProtectedRoute>} />
                       <Route path="/dashboard/agent/landlords" element={<ProtectedRoute requireAgent><AgentDashboard tab="landlords" /></ProtectedRoute>} />
                       <Route path="/dashboard/agent/properties" element={<ProtectedRoute requireAgent><AgentDashboard tab="properties" /></ProtectedRoute>} />
+                      <Route path="/dashboard/agent/messages" element={<ProtectedRoute requireAgent><Messages type="agent" /></ProtectedRoute>} />
                       
                       {/* Fallbacks */}
                       <Route path="/tenant/*" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />

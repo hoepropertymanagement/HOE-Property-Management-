@@ -26,6 +26,9 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [showVerify, setShowVerify] = useState<{ type: 'phone' | 'email'; value: string } | null>(null);
 
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const isAgentUser = (user?.email || profile?.email) && allowedAgentEmails.includes((user?.email || profile?.email || '').toLowerCase());
+
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -133,7 +136,12 @@ export default function ProfilePage() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-accent/10 transition-colors" />
               
               <div className="relative z-10 text-center">
-                <div className="w-40 h-40 mx-auto rounded-[3rem] bg-black/20 border-4 border-accent/20 overflow-hidden relative mb-8 group-hover:border-accent transition-all duration-700 rotate-3 group-hover:rotate-0">
+                <div className={cn(
+                  "w-40 h-40 mx-auto rounded-[3rem] bg-black/20 overflow-hidden relative mb-8 transition-all duration-700 rotate-3 group-hover:rotate-0 flex items-center justify-center",
+                  isAgentUser 
+                    ? "ring-4 ring-blue-500 ring-offset-4 ring-offset-[#1b3022] shadow-[0_0_20px_rgba(59,130,246,0.65)]" 
+                    : "border-4 border-accent/20 group-hover:border-accent"
+                )}>
                   {(formData.photoURL || profile?.photoURL) ? (
                     <img src={formData.photoURL || profile?.photoURL} alt={formData.name} className="w-full h-full object-cover transition-all duration-700" referrerPolicy="no-referrer" />
                   ) : (
@@ -248,6 +256,34 @@ export default function ProfilePage() {
                       onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-10 pt-12 border-t border-white/5">
+                <h3 className="text-sm font-black uppercase tracking-[0.4em] text-accent border-l-4 border-accent pl-6">Ecosystem Role</h3>
+                <p className="text-secondary/60 text-xs px-2 -mt-6">Choose how you'd like to access and navigate the House of Eden ecosystem. This determines your primary dashboard view.</p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-2">
+                  {[
+                    { id: 'tenant', label: 'Tenant', desc: 'Searching for home' },
+                    { id: 'landlord', label: 'Landlord', desc: 'Property management' },
+                    ...(isAgentUser ? [{ id: 'agent', label: 'Agent', desc: 'Manage portfolio' }] : []),
+                    { id: 'both', label: 'Both', desc: 'Dual access' }
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, role: r.id as any }))}
+                      className={cn(
+                        "p-5 rounded-[2rem] border-2 transition-all text-left flex flex-col gap-2 cursor-pointer relative overflow-hidden",
+                        formData.role === r.id 
+                          ? "bg-accent/15 border-accent text-accent shadow-lg shadow-accent/5" 
+                          : "bg-black/20 border-transparent text-secondary/40 hover:border-white/10 hover:bg-black/30"
+                      )}
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-widest">{r.label}</span>
+                      <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest text-ellipsis overflow-hidden whitespace-nowrap">{r.desc}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

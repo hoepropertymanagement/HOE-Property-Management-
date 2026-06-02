@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
   requireAgent?: boolean;
 }
 
-const allowedAgentEmails = ['twighlightani113@gmail.com', 'ann.imaginator@gmail.com', 'nkeface14@gmail.com'];
+const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
 
 export default function ProtectedRoute({ children, requireLandlord = false, requireAgent = false }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
@@ -40,7 +40,7 @@ export default function ProtectedRoute({ children, requireLandlord = false, requ
     }
   }
 
-  if (requireLandlord && profile?.role !== 'landlord' && profile?.role !== 'both') {
+  if (requireLandlord && profile?.role !== 'landlord' && profile?.role !== 'both' && profile?.role !== 'agent') {
     return <Navigate to="/dashboard" replace />;
   }
 

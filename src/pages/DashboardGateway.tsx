@@ -9,7 +9,7 @@ export default function DashboardGateway() {
   const navigate = useNavigate();
   const { user, profile, updateProfile, loading } = useAuth();
 
-  const allowedAgentEmails = ['twighlightani113@gmail.com', 'ann.imaginator@gmail.com', 'nkeface14@gmail.com'];
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
   const isAgentUser = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
 
   useEffect(() => {

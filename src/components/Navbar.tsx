@@ -14,6 +14,9 @@ export default function Navbar() {
   const location = useLocation();
   const isSearchPage = location.pathname === '/search';
 
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const isAgent = profile?.role === 'agent' || (user?.email && allowedAgentEmails.includes(user.email.toLowerCase()));
+
   useEffect(() => {
     const handleScroll = () => {
       // Trigger minimization much later, or follow a smoother logic
@@ -103,8 +106,13 @@ export default function Navbar() {
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full border-2 border-secondary" />
                 </Link>
                 <div className="flex items-center gap-4 border-l border-primary/10 pl-6">
-                  <Link to="/profile" className="flex items-center gap-3 group">
-                    <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/20 overflow-hidden">
+                  <Link to="/profile" className="flex items-center gap-3 group animate-fadeIn">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full overflow-hidden flex items-center justify-center transition-all",
+                      isAgent 
+                        ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-[#0d140e] shadow-[0_0_12px_rgba(59,130,246,0.65)] bg-slate-800" 
+                        : "bg-accent/20 border border-accent/20"
+                    )}>
                       {profile?.photoURL ? (
                         <img src={profile.photoURL} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -156,7 +164,12 @@ export default function Navbar() {
             ) : (
               <Link 
                 to="/profile" 
-                className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/20 overflow-hidden flex items-center justify-center transition-all active:scale-90 shadow-sm"
+                className={cn(
+                  "w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-all active:scale-90 shadow-sm",
+                  isAgent 
+                    ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-[#0d140e] shadow-[0_0_12px_rgba(59,130,246,0.65)] bg-slate-800" 
+                    : "bg-accent/20 border border-accent/20"
+                )}
               >
                 {profile?.photoURL ? (
                   <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />

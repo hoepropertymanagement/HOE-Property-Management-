@@ -306,14 +306,19 @@ const ViewingRequestWidget = ({
   );
 };
 
-export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
+export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'agent' }) {
   const { user, profile } = useAuth();
   const { role: urlRole } = useParams();
   const [searchParams] = useSearchParams();
   const isCollapsed = useSidebarCollapse();
   const conversationIdParam = searchParams.get('id');
 
-  const resolvedRole = type || (urlRole === 'landlord' ? 'landlord' : 'tenant');
+  const resolvedRole = type || (urlRole === 'landlord' ? 'landlord' : urlRole === 'agent' ? 'agent' : 'tenant');
+
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const isUserAgent = (email?: string, role?: string) => {
+    return role === 'agent' || (email && allowedAgentEmails.includes(email.toLowerCase()));
+  };
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(conversationIdParam);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -661,7 +666,12 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                   >
                     <div className="relative flex-shrink-0">
                       {chat.otherUser?.photoURL ? (
-                        <img src={chat.otherUser?.photoURL} alt={chat.otherUser?.name} className="w-14 h-14 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                        <div className={cn(
+                          "relative rounded-2xl",
+                          isUserAgent(chat.otherUser?.email, chat.otherUser?.role) && "ring-2 ring-blue-500 ring-offset-2 ring-offset-secondary shadow-[0_0_12px_rgba(59,130,246,0.6)]"
+                        )}>
+                          <img src={chat.otherUser?.photoURL} alt={chat.otherUser?.name} className="w-14 h-14 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                        </div>
                       ) : (
                         <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center text-accent font-bold">
                           {chat.otherUser?.name?.[0] || 'U'}
@@ -722,7 +732,12 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' }) {
                     </button>
                     <div className="w-[1px] h-6 bg-primary/5 mx-2 hidden sm:block" />
                     {currentChat?.otherUser?.photoURL ? (
-                       <img src={currentChat?.otherUser?.photoURL} alt={currentChat?.otherUser?.name} className="w-12 h-12 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
+                       <div className={cn(
+                         "relative rounded-2xl",
+                         isUserAgent(currentChat?.otherUser?.email, currentChat?.otherUser?.role) && "ring-2 ring-blue-500 ring-offset-2 ring-offset-secondary shadow-[0_0_12px_rgba(59,130,246,0.6)]"
+                       )}>
+                         <img src={currentChat?.otherUser?.photoURL} alt={currentChat?.otherUser?.name} className="w-12 h-12 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
+                       </div>
                     ) : (
                       <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center text-accent font-bold">
                         {currentChat?.otherUser?.name?.[0] || 'U'}

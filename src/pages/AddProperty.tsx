@@ -298,6 +298,12 @@ export default function AddProperty() {
       return;
     }
     
+    if (!user.emailVerified) {
+      setError('You must verify your email address to publish properties. Please click resend below if you need a new verification link.');
+      showNotification("Please verify your email to publish listings", "red");
+      return;
+    }
+    
     setIsPublishing(true);
     setError(null);
     

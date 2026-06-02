@@ -190,8 +190,8 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
   const handleAddLandlord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (!llName.trim() || !llEmail.trim() || !llPhone.trim()) {
-      showNotification("Please fill in all mandatory landlord fields", "red");
+    if (!llName.trim()) {
+      showNotification("Please enter landlord's name", "red");
       return;
     }
 
@@ -787,24 +787,22 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-700 font-extrabold mb-2">Registered Email Address</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-700 font-extrabold mb-2">Registered Email Address (Optional)</label>
                   <input 
                     type="email" 
                     value={llEmail}
                     onChange={(e) => setLlEmail(e.target.value)}
                     placeholder="e.g. richard@sterlingholdings.co.uk"
-                    required
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500/25 focus:border-teal-500 text-slate-900 text-sm font-semibold transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-700 font-extrabold mb-2">UK Mobile Connection</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-700 font-extrabold mb-2">UK Mobile Connection (Optional)</label>
                   <input 
                     type="tel" 
                     value={llPhone}
                     onChange={(e) => setLlPhone(e.target.value)}
                     placeholder="e.g. 07700 900501"
-                    required
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500/25 focus:border-teal-500 text-slate-900 text-sm font-semibold transition-all"
                   />
                 </div>
