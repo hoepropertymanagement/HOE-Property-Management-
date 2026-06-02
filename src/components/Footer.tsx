@@ -18,6 +18,7 @@ export default function Footer() {
               <li><Link to="/search?mode=Rent" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Lettings/Buy <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
               <li><Link to="/dashboard/landlord/analytics" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Valuation <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
               <li><Link to="/search?filter=student" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Student Living <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+              <li><Link to="/fees" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Services & Fees <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
             </ul>
           </div>
 
@@ -76,9 +77,11 @@ export default function Footer() {
               Registered with the Information Commissioner's Office (ICO). Reference Number: <span className="font-mono bg-white/5 border border-white/15 px-2 py-0.5 rounded text-white text-xs">ZC154194</span>
             </p>
             
-            <div className="my-2">
-              <Link to="/fees" className="text-sm font-bold text-[#c299ff] hover:text-[#d4af37] transition-colors inline-flex items-center">
-                Transparent Fee Schedule (Landlords & Tenants)
+            <div className="my-4">
+              <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-2">Services and Fees</h3>
+              <Link to="/fees" className="text-sm font-bold text-white hover:text-[#d4af37] transition-colors inline-flex items-center gap-2 group">
+                Professional Services & Fees
+                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" />
               </Link>
             </div>
             

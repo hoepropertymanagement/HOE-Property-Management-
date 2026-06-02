@@ -5,8 +5,7 @@ import { getStorage } from 'firebase/storage';
 import firebaseConfigData from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
-  ...firebaseConfigData,
-  authDomain: "hoepropertymanagement.co.uk"
+  ...firebaseConfigData
 };
 
 const app = initializeApp(firebaseConfig);

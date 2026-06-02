@@ -67,7 +67,7 @@ export default function Fees() {
           className="text-center mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-black text-[#c299ff] tracking-tight mb-8 drop-shadow-[0_0_15px_rgba(194,153,255,0.4)]">
-            Fee Schedule
+            Professional Services & Fees
           </h1>
           
           <div className="bg-[#c299ff]/10 border border-[#c299ff]/30 rounded-xl p-4 md:p-6 flex items-start gap-4 max-w-2xl mx-auto shadow-[0_0_20px_rgba(194,153,255,0.15)] text-left">
