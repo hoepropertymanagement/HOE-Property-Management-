@@ -60,10 +60,20 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
       transition={{ duration: 0.5 }}
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
-      className="group bg-white rounded-3xl overflow-hidden border border-border hover:shadow-2xl transition-all duration-700 cursor-pointer flex flex-col h-full"
+      className={cn(
+        "group bg-white rounded-3xl overflow-hidden border border-border hover:shadow-2xl transition-all duration-700 cursor-pointer flex flex-col h-full",
+        property.status === 'Let Agreed' && !isLandlord ? "opacity-70 grayscale-[20%]" : ""
+      )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[#F5F5F0] touch-pan-y group/carousel">
-        <Link to={`/property/${property.id}`} className="absolute inset-0 z-10">
+        <Link to={`/property/${property.id}`} className={cn("absolute inset-0 z-10", property.status === 'Let Agreed' && !isLandlord ? "pointer-events-none" : "")}>
+          {property.status === 'Let Agreed' && (
+            <div className="absolute inset-0 z-40 bg-[#0a2f1d]/50 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
+              <div className="bg-accent text-primary px-6 py-3 rounded-full font-black uppercase tracking-[0.3em] shadow-2xl border-2 border-primary/20 transform -rotate-12 scale-110">
+                Let Agreed
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="popLayout" initial={false}>
             {displayImages.length > 0 ? (
               <motion.div
@@ -234,11 +244,11 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
         </div>
       </div>
 
-      <Link to={`/property/${property.id}`} className="p-5 flex-grow flex flex-col">
+      <Link to={`/property/${property.id}`} className={cn("p-5 flex-grow flex flex-col", property.status === 'Let Agreed' && !isLandlord ? "pointer-events-none" : "")}>
         <div className="mb-2">
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-accent font-bold text-xl">{property.price}</h3>
-            {(!property.status || property.status === 'Live' ? isLandlord : true) && (
+            {((!property.status || property.status === 'Live' || property.status === 'Let Agreed') ? true : isLandlord) && (
               <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-primary bg-primary/5 px-2 py-1 rounded-md">
                 <span className={cn(
                   "w-1.5 h-1.5 rounded-full",

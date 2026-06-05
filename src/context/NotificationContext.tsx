@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Notification {
@@ -17,13 +17,13 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const showNotification = (text: string, type: 'gold' | 'red') => {
+  const showNotification = useCallback((text: string, type: 'gold' | 'red') => {
     const id = Date.now() + Math.random();
     setNotifications(prev => [...prev, { text, type, id }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 4000);
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>

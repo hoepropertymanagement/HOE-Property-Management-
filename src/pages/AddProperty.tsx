@@ -765,7 +765,7 @@ export default function AddProperty() {
                     {formData.epcCertificate ? <CheckCircle2 className="w-8 h-8 text-green-500" /> : <ShieldCheck className="w-8 h-8 text-accent" />}
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">{formData.epcCertificate ? 'Certificate Attached' : 'Attach EPC Certificate'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">{formData.epcCertificate ? '✔ Verified' : 'Attach EPC Certificate'}</p>
                     <p className="text-[9px] text-primary/30 mt-1 font-bold uppercase">Official EPC Image or PDF</p>
                   </div>
                   <input id="epc-upload" type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleImageChange(e, 'epcCertificate')} />
@@ -1164,7 +1164,7 @@ export default function AddProperty() {
               {isPublishing ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : step === 5 ? (
-                "Publish Live Listing"
+                "Continue & Publish Listing"
               ) : (
                 <>Advance System <ArrowRight className="w-5 h-5" /></>
               )}

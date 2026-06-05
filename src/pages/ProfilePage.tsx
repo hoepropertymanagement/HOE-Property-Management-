@@ -262,12 +262,10 @@ export default function ProfilePage() {
               <div className="space-y-10 pt-12 border-t border-white/5">
                 <h3 className="text-sm font-black uppercase tracking-[0.4em] text-accent border-l-4 border-accent pl-6">Ecosystem Role</h3>
                 <p className="text-secondary/60 text-xs px-2 -mt-6">Choose how you'd like to access and navigate the House of Eden ecosystem. This determines your primary dashboard view.</p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-2">
                   {[
-                    { id: 'tenant', label: 'Tenant', desc: 'Searching for home' },
-                    { id: 'landlord', label: 'Landlord', desc: 'Property management' },
-                    ...(isAgentUser ? [{ id: 'agent', label: 'Agent', desc: 'Manage portfolio' }] : []),
-                    { id: 'both', label: 'Both', desc: 'Dual access' }
+                    { id: 'landlord', label: 'Landlord Portal', desc: 'Property management' },
+                    { id: 'tenant', label: 'Tenant Portal', desc: 'Searching for home' }
                   ].map((r) => (
                     <button
                       key={r.id}
@@ -285,6 +283,31 @@ export default function ProfilePage() {
                     </button>
                   ))}
                 </div>
+
+                {isAgentUser && (
+                  <div className="space-y-6 pt-10 px-2">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-accent flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Agent Promotion (Admin Only)</h3>
+                    <div className="flex items-center justify-between p-6 bg-black/30 rounded-[2rem] border border-accent/30 group/toggle">
+                      <div className="text-left">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-accent mb-0.5">Make Agent</p>
+                        <p className="text-[9px] text-secondary/60 uppercase font-bold tracking-wide">Promote to Agent access level</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, role: prev.role === 'agent' ? 'landlord' : 'agent' }))}
+                        className={cn(
+                          "w-14 h-7 rounded-full relative transition-all outline-none",
+                          formData.role === 'agent' ? "bg-accent shadow-[0_0_15px_rgba(212,175,55,0.4)]" : "bg-black"
+                        )}
+                      >
+                        <div className={cn(
+                          "absolute top-1 w-5 h-5 rounded-full transition-all duration-300",
+                          formData.role === 'agent' ? "bg-[#140526] right-1" : "bg-secondary/40 left-1"
+                        )} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-10 pt-12 border-t border-white/5">

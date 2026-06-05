@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, ArrowRight, ShieldCheck, Clock, Award, Home as HomeIcon, MapPin, ChevronDown, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { cn } from '../lib/utils';
@@ -13,6 +13,18 @@ import { db } from '../lib/firebase';
 import { collection, query as fireQuery, limit, getDocs, where, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function Home() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.showVerifyModal) {
+      setShowVerifyModal(true);
+      // Clear the state so it doesn't show again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [searchMode, setSearchMode] = useState<'Buy' | 'Rent'>('Rent');
@@ -27,7 +39,7 @@ export default function Home() {
       try {
         const q = fireQuery(
           collection(db, 'properties'), 
-          where('status', '==', 'Live'),
+          where('status', 'in', ['Live', 'Let Agreed']),
           limit(3)
         );
         const querySnapshot = await getDocs(q);
@@ -698,6 +710,42 @@ export default function Home() {
               className="absolute bottom-0 left-4 right-4 h-0.5 bg-accent origin-left rounded-full"
             />
           </motion.div>
+        )}
+
+        {showVerifyModal && (
+          <div className="fixed inset-0 bg-[#0c0214]/90 backdrop-blur-[6px] z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#140526] border border-accent/40 p-8 md:p-10 rounded-[2rem] w-full max-w-sm relative shadow-2xl text-center"
+            >
+              <button 
+                type="button"
+                onClick={() => setShowVerifyModal(false)}
+                className="absolute top-4 right-5 bg-transparent border-none text-white/50 hover:text-accent text-2xl cursor-pointer transition-colors"
+                style={{ fontSize: '1.5rem' }}
+              >
+                &times;
+              </button>
+              
+              <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent/30">
+                <span className="text-accent text-[1.4rem]">✉️</span>
+              </div>
+              <h3 className="text-white text-[12px] font-black uppercase tracking-[0.2em] mb-4">Verify Your Email</h3>
+              <p className="text-white/60 text-[11px] leading-relaxed mb-8 uppercase tracking-[0.05em]">
+                A secure verification link has been sent to your inbox. Please click the link to activate your House of Eden portal access.
+              </p>
+              
+              <button 
+                type="button"
+                onClick={() => setShowVerifyModal(false)} 
+                className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+              >
+                I Understand
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

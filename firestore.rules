@@ -53,7 +53,7 @@ service cloud.firestore {
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
              (!('bio' in data) || (data.bio is string && data.bio.size() <= 1000)) &&
              (!('contactNumber' in data) || (data.contactNumber is string && data.contactNumber.size() <= 30)) &&
-             (!('role' in data) || (data.role in ['tenant', 'landlord', 'both'])) &&
+             (!('role' in data) || (data.role in ['tenant', 'landlord', 'both', 'agent'])) &&
              (!('isPhoneVerified' in data) || (data.isPhoneVerified is bool));
     }
 

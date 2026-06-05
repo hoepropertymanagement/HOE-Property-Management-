@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
   requireAgent?: boolean;
 }
 
-const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
 
 export default function ProtectedRoute({ children, requireLandlord = false, requireAgent = false }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
@@ -28,14 +28,18 @@ export default function ProtectedRoute({ children, requireLandlord = false, requ
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // If role is missing, redirect to dashboard gateway for onboarding
-  if (!profile?.role && location.pathname !== '/dashboard') {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const userEmail = user?.email || profile?.email || '';
+  const isAgentUser = userEmail && allowedAgentEmails.includes(userEmail.toLowerCase());
 
   if (requireAgent) {
-    const userEmail = user?.email || profile?.email || '';
-    if (!userEmail || !allowedAgentEmails.includes(userEmail.toLowerCase())) {
+    if (!isAgentUser) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    // If it's an agent route and they are an agent, bypass the role check
+  } else {
+    // If we are NOT on an agent route, but they are an agent, let them through if their role is still null?
+    // Actually, DashboardGateway auto-redirects them to agent dashboard anyway.
+    if (!profile?.role && location.pathname !== '/dashboard' && !isAgentUser) {
       return <Navigate to="/dashboard" replace />;
     }
   }

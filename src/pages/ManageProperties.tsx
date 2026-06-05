@@ -10,14 +10,13 @@ import BottomNav from '../components/BottomNav';
 import { 
   Plus, MoreVertical, CheckCircle2, AlertCircle, Clock,
   Building, Search, Filter, ArrowLeft, ArrowRight,
-  Eye, Edit, Trash2, MessageCircle, Loader2, X, MapPin
+  Eye, Edit, Trash2, MessageCircle, Loader2, X, MapPin, ChevronDown
 } from 'lucide-react';
 import { Property, mockProperties } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy, query as fireQuery, where as fireWhere } from 'firebase/firestore';
+import { Property, mockProperties } from '../constants/mockData';
 
 export default function ManageProperties() {
   const isCollapsed = useSidebarCollapse();
@@ -40,14 +39,17 @@ export default function ManageProperties() {
       setLoading(true);
       try {
         // Query from Firestore matching logged-in user explicitly
-        const q = query(
-          collection(db, 'properties'), 
-          where('landlordId', '==', landlordId)
-        );
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        const { db: firestoreDb } = await import('../lib/firebase');
+        const q = query(collection(firestoreDb, 'properties'), where('landlordId', '==', landlordId));
         const querySnapshot = await getDocs(q);
-        const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+
+        const props = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Property[];
         
-        // Merge with mock properties, dynamically assigning landlordId to current landlord
+        // Merge with mock properties
         const merged = [...props];
         mockProperties.forEach(mockItem => {
           if (!merged.some(p => p.id === mockItem.id)) {
@@ -60,7 +62,7 @@ export default function ManageProperties() {
         setProperties(merged);
       } catch (err) {
         console.error("Error fetching properties:", err);
-        // Fallback to system-defined mock properties with in-memory landlordId mapping
+        // Fallback to mock
         const fallback = mockProperties.map(m => ({ ...m, landlordId: landlordId }));
         setProperties(fallback);
       } finally {
@@ -74,10 +76,9 @@ export default function ManageProperties() {
     try {
       const { doc, updateDoc } = await import('firebase/firestore');
       const { db: firestoreDb } = await import('../lib/firebase');
-      await updateDoc(doc(firestoreDb, 'properties', propertyId), {
-        status: newStatus,
-        updatedAt: new Date()
-      });
+      const docRef = doc(firestoreDb, 'properties', propertyId);
+      await updateDoc(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
+        
       setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: newStatus } as Property : p));
     } catch (err) {
       console.error("Error updating property status:", err);
@@ -88,10 +89,9 @@ export default function ManageProperties() {
     try {
       const { doc, updateDoc } = await import('firebase/firestore');
       const { db: firestoreDb } = await import('../lib/firebase');
-      await updateDoc(doc(firestoreDb, 'properties', propertyId), {
-        status: 'Archived',
-        updatedAt: new Date()
-      });
+      const docRef = doc(firestoreDb, 'properties', propertyId);
+      await updateDoc(docRef, { status: 'Archived', updatedAt: new Date().toISOString() });
+
       setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: 'Archived' } as Property : p));
     } catch (err) {
       console.error("Error archiving property:", err);
@@ -213,27 +213,41 @@ export default function ManageProperties() {
                         <p className="text-[10px] text-primary/30 uppercase font-bold tracking-tighter">PCM</p>
                       </td>
                       <td className="px-8 py-6">
-                        <span 
-                          onClick={() => {
-                            if (p.status === 'Draft') {
-                              navigate(`/dashboard/landlord/add?id=${p.id}`);
-                            }
-                          }}
-                          className={cn(
-                            "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit shadow-sm border transition-all duration-300 select-none",
-                            p.status === 'Live' ? "bg-green-50 text-green-600 border-green-100" :
-                            p.status === 'Let Agreed' ? "bg-indigo-50 text-indigo-600 border-indigo-100" : 
-                            p.status === 'Paused' ? "bg-orange-50 text-orange-600 border-orange-100" :
-                            p.status === 'Archived' ? "bg-red-50 text-red-600 border-red-100" :
-                            "bg-amber-50 text-amber-700 border-amber-200 cursor-pointer hover:bg-black hover:text-accent hover:border-accent active:scale-95 shadow-md hover:shadow-accent/10" // Draft
-                          )}
-                        >
-                          {p.status === 'Live' ? <CheckCircle2 className="w-3.5 h-3.5" /> : 
-                           p.status === 'Let Agreed' ? <Clock className="w-3.5 h-3.5" /> : 
-                           p.status === 'Draft' ? <Edit className="w-3.5 h-3.5" /> :
-                           <AlertCircle className="w-3.5 h-3.5" />}
-                          {p.status}
-                        </span>
+                        {p.status === 'Draft' ? (
+                          <span 
+                            onClick={() => navigate(`/dashboard/landlord/add?id=${p.id}`)}
+                            className="px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 w-fit shadow-md border transition-all duration-300 select-none bg-amber-50 text-amber-700 border-amber-200 cursor-pointer hover:bg-black hover:text-accent hover:border-accent active:scale-95 hover:shadow-accent/10"
+                          >
+                            <Edit className="w-3.5 h-3.5" /> Draft
+                          </span>
+                        ) : (
+                          <div className="relative w-max">
+                            <select
+                              value={p.status}
+                              onChange={(e) => handleUpdateStatus(p.id, e.target.value)}
+                              className={cn(
+                                "appearance-none pl-8 pr-8 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border transition-all duration-300 select-none cursor-pointer outline-none focus:ring-2 focus:ring-accent/50",
+                                p.status === 'Live' ? "bg-green-50 text-green-600 border-green-100" :
+                                p.status === 'Let Agreed' ? "bg-indigo-50 text-indigo-600 border-indigo-100" : 
+                                p.status === 'Paused' ? "bg-orange-50 text-orange-600 border-orange-100" :
+                                "bg-red-50 text-red-600 border-red-100" // Archived
+                              )}
+                            >
+                              <option value="Live">Live</option>
+                              <option value="Let Agreed">Let Agreed</option>
+                              <option value="Paused">Paused</option>
+                              <option value="Archived">Archived</option>
+                            </select>
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              {p.status === 'Live' ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : 
+                               p.status === 'Let Agreed' ? <Clock className="w-3.5 h-3.5 text-indigo-600" /> : 
+                               <AlertCircle className="w-3.5 h-3.5 text-current opacity-70" />}
+                            </div>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <ChevronDown className="w-3.5 h-3.5 text-current opacity-60" />
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex flex-col gap-1">

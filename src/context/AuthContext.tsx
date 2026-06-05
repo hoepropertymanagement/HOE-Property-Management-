@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { FirebaseUser } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
+import { supabase } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+
+export type UnifiedUser = FirebaseUser | (SupabaseUser & { uid: string; displayName: string | null; photoURL: string | null; emailVerified: boolean });
 
 interface UserProfile {
   uid: string;
@@ -21,7 +25,7 @@ interface UserProfile {
 }
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: UnifiedUser | null;
   profile: UserProfile | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
@@ -32,7 +36,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<UnifiedUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,15 +56,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        const docRef = doc(db, 'users', firebaseUser.uid);
+        handleUserDoc(firebaseUser.uid, firebaseUser.displayName, firebaseUser.email, firebaseUser.photoURL);
+      } else {
+        // If Firebase logs out, check Supabase session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) {
+            setUser(null);
+            setProfile(null);
+            if (unsubscribeProfile) unsubscribeProfile();
+            setLoading(false);
+          }
+        });
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const unifiedUser: UnifiedUser = {
+          ...session.user,
+          uid: session.user.id,
+          displayName: session.user.user_metadata?.displayName || session.user.user_metadata?.name || 'New User',
+          photoURL: session.user.user_metadata?.photoURL || null,
+          emailVerified: !!session.user.email_confirmed_at
+        };
+        setUser(unifiedUser);
+        
+        // Use Supabase profile metadata instead of Firestore lookup
+        const metadata = session.user.user_metadata || {};
+        const pseudoProfile: UserProfile = {
+           uid: session.user.id,
+           name: metadata.displayName || metadata.name || 'New User',
+           email: session.user.email || '',
+           photoURL: metadata.photoURL || '',
+           bio: metadata.bio || '',
+           contactNumber: metadata.contactNumber || '',
+           isPublicContact: !!metadata.isPublicContact,
+           showPhoneNumber: !!metadata.showPhoneNumber,
+           showEmail: !!metadata.showEmail,
+           role: metadata.role as any,
+           isPhoneVerified: !!metadata.isPhoneVerified,
+           createdAt: session.user.created_at,
+           updatedAt: session.user.updated_at
+        };
+        setProfile(pseudoProfile);
+        setLoading(false);
+      } else if (!auth.currentUser) {
+        setUser(null);
+        setProfile(null);
+        if (unsubscribeProfile) unsubscribeProfile();
+        setLoading(false);
+      }
+    });
+
+    const handleUserDoc = async (uid: string, displayName: string | null | undefined, email: string | null | undefined, photoURL: string | null | undefined) => {
+        const docRef = doc(db, 'users', uid);
         try {
           const docSnap = await getDoc(docRef);
           if (!docSnap.exists()) {
             const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'New User',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || '',
+              uid,
+              name: displayName || 'New User',
+              email: email || '',
+              photoURL: photoURL || '',
               bio: '',
               contactNumber: '',
               isPublicContact: false,
@@ -72,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await setDoc(docRef, newProfile);
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
         }
 
         if (unsubscribeProfile) unsubscribeProfile();
@@ -84,38 +141,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setLoading(false);
         }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
           setLoading(false);
         });
-      } else {
-        setUser(null);
-        setProfile(null);
-        if (unsubscribeProfile) unsubscribeProfile();
-        setLoading(false);
-      }
-    });
+    };
 
     return () => {
       unsubscribeFirebase();
+      subscription.unsubscribe();
       if (unsubscribeProfile) unsubscribeProfile();
     };
   }, []);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Google login failed:", error);
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
-    await signOut(auth);
-  };
+  const logout = useCallback(async () => {
+    await Promise.all([
+      signOut(auth),
+      supabase.auth.signOut()
+    ]);
+  }, []);
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!user) return;
+
+    // Supabase User handling
+    if ((user as any).app_metadata) {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.auth.updateUser({
+        data: updates
+      });
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, ...updates } as UserProfile : null);
+      
+      // We also update Firestore so other users/agents can still query the public profile if needed
+      // (This serves as a backup registry)
+    }
+
     const docRef = doc(db, 'users', user.uid);
     
     try {
@@ -139,14 +208,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         await setDoc(docRef, { ...updates, updatedAt: serverTimestamp() }, { merge: true });
       }
+      
+      // Update local profile immediately for Firebase users
+      if (!(user as any).app_metadata) {
+         setProfile(prev => prev ? { ...prev, ...updates } as UserProfile : null);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
       throw error;
     }
-  };
+  }, [user]);
+
+  const contextValue = React.useMemo(() => ({
+    user, profile, loading, loginWithGoogle, logout, updateProfile
+  }), [user, profile, loading, loginWithGoogle, logout, updateProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, loginWithGoogle, logout, updateProfile }}>
+    <AuthContext.Provider value={contextValue}>
       {!loading && children}
     </AuthContext.Provider>
   );

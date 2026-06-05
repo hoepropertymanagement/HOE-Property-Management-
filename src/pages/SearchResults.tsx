@@ -217,7 +217,7 @@ export default function SearchResults() {
     async function fetchProperties() {
       setIsLoading(true);
       try {
-        const q = fireQuery(collection(db, 'properties'), fireWhere('status', '==', 'Live'));
+        const q = fireQuery(collection(db, 'properties'), fireWhere('status', 'in', ['Live', 'Let Agreed']));
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         

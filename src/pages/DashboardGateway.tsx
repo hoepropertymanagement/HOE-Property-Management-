@@ -9,22 +9,27 @@ export default function DashboardGateway() {
   const navigate = useNavigate();
   const { user, profile, updateProfile, loading } = useAuth();
 
-  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
   const isAgentUser = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
 
   useEffect(() => {
     if (!loading && profile) {
+      // Force redirect for Agents / Master Admins
+      if (isAgentUser) {
+        if (profile.role !== 'agent') {
+          updateProfile({ role: 'agent' }).catch(console.error);
+        }
+        navigate('/dashboard/agent', { replace: true });
+        return;
+      }
+
       if (profile.role === 'tenant') {
         navigate('/dashboard/tenant', { replace: true });
       } else if (profile.role === 'landlord') {
         navigate('/dashboard/landlord', { replace: true });
       } else if (profile.role === 'agent') {
-        if (isAgentUser) {
-          navigate('/dashboard/agent', { replace: true });
-        } else {
-          // Fallback if role is agent but email is not allowed
-          navigate('/dashboard/tenant', { replace: true });
-        }
+         // fallback if role is agent but they are no longer in the allowed emails list somehow
+         navigate('/dashboard/landlord', { replace: true });
       }
       // If role is missing, we stay here to let them select one
     }
@@ -32,7 +37,6 @@ export default function DashboardGateway() {
 
   const selectRole = async (role: 'tenant' | 'landlord' | 'both' | 'agent') => {
     if (profile) {
-      // If the user already has a 'both' or 'agent' role, we don't want to overwrite it 
       if (profile.role !== 'both' && profile.role !== 'agent') {
         await updateProfile({ role });
       }
@@ -48,138 +52,104 @@ export default function DashboardGateway() {
   // If role is missing, show specialized selection for onboarding
   if (!profile?.role) {
     return (
-      <div className="min-h-screen bg-primary pt-32 pb-20 px-4 flex items-center justify-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-secondary p-12 rounded-[3rem] shadow-2xl text-center"
-        >
-          <h1 className="text-4xl font-serif text-accent italic mb-2">Complete Your Profile</h1>
-          <p className="text-[10px] text-primary/30 uppercase tracking-[0.2em] font-extrabold mb-10 italic">
-            House of Eden
-          </p>
-          <p className="text-primary/60 text-sm mb-12">How will you be using HOE Property Management? You can change this later in settings.</p>
-          
-          <div className="space-y-4">
-            <button 
-              onClick={() => selectRole('tenant')}
-              className="w-full py-4 bg-primary/5 border border-primary/10 rounded-2xl font-bold uppercase tracking-widest text-xs hover:border-accent transition-all"
-            >
-              Tenant
-            </button>
-            <button 
-              onClick={() => selectRole('landlord')}
-              className="w-full py-4 bg-primary/5 border border-primary/10 rounded-2xl font-bold uppercase tracking-widest text-xs hover:border-accent transition-all"
-            >
-              Landlord
-            </button>
-            {isAgentUser && (
-              <button 
-                onClick={() => selectRole('agent')}
-                className="w-full py-4 bg-primary/5 border border-accent/20 rounded-2xl font-bold uppercase tracking-widest text-xs hover:border-accent transition-all text-accent"
-              >
-                Agent Portal
-              </button>
-            )}
-            <button 
-              onClick={() => selectRole('both')}
-              className="w-full py-4 bg-accent text-primary rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-accent-hover transition-all"
-            >
-              Both (Tenant & Landlord)
-            </button>
+      <div className="min-h-[calc(100vh-80px)] bg-[#0a1a0f] flex items-center justify-center p-4">
+        <div className="max-w-4xl w-full">
+          <div className="text-center mb-16">
+            <h1 className="text-4xl md:text-6xl font-serif text-accent italic mb-4">Select Your Portal</h1>
+            <p className="text-secondary/60 uppercase tracking-[0.3em] text-[10px] md:text-xs">Choose how you'd like to manage your account today</p>
           </div>
-        </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Landlord Card */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => selectRole('landlord')}
+              className="group relative overflow-hidden bg-[#140526] border border-accent/20 rounded-[2.5rem] p-12 text-left transition-all hover:border-accent shadow-[0_0_40px_rgba(212,175,55,0.05)] hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] flex flex-col items-center text-center h-full"
+            >
+              <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                <Briefcase className="w-10 h-10 text-accent" />
+              </div>
+              <h2 className="text-4xl font-serif text-white mb-6 uppercase tracking-widest font-bold">Landlord Portal</h2>
+              <p className="text-white/60 mb-10 max-w-sm text-sm leading-relaxed">
+                Manage your listings, access valuation reports, and track leads for your properties seamlessly.
+              </p>
+              <div className="mt-auto px-10 py-5 w-full bg-accent text-[#140526] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] flex items-center justify-center gap-3 transition-colors group-hover:bg-[#0a2f1d] group-hover:text-accent border border-transparent group-hover:border-accent">
+                Enter Portal <ArrowRight className="w-4 h-4" />
+              </div>
+            </motion.button>
+
+            {/* Tenant Card */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => selectRole('tenant')}
+              className="group relative overflow-hidden bg-[#140526] border border-accent/20 rounded-[2.5rem] p-12 text-left transition-all hover:border-accent shadow-[0_0_40px_rgba(212,175,55,0.05)] hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] flex flex-col items-center text-center h-full"
+            >
+              <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                <Key className="w-10 h-10 text-accent" />
+              </div>
+              <h2 className="text-4xl font-serif text-white mb-6 uppercase tracking-widest font-bold">Tenant Portal</h2>
+              <p className="text-white/60 mb-10 max-w-sm text-sm leading-relaxed">
+                Access your saved properties, manage your search alerts, and track your active enquiries easily.
+              </p>
+              <div className="mt-auto px-10 py-5 w-full bg-[#0a2f1d] text-accent border border-accent rounded-xl font-black uppercase tracking-[0.3em] text-[12px] flex items-center justify-center gap-3 transition-all hover:bg-accent hover:text-[#140526]">
+                Enter Portal <ArrowRight className="w-4 h-4" />
+              </div>
+            </motion.button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // If role is 'both' or we want to allow selecting any of the portals
+  // If role is 'both' we might still be here (if they used the old "both" button), but we'll show the two cards anyway for them to choose their path for the session.
   return (
-    <div className="min-h-screen bg-primary pt-32 pb-20 px-4">
-      <div className="max-w-7xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <h1 className="text-4xl md:text-5xl font-serif text-accent italic mb-4">Select Your Portal</h1>
-          <p className="text-secondary/60 uppercase tracking-[0.3em] text-xs">Choose how you'd like to manage your account today</p>
-        </motion.div>
+    <div className="min-h-[calc(100vh-80px)] bg-[#0a1a0f] flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-6xl font-serif text-accent italic mb-4">Select Your Portal</h1>
+          <p className="text-secondary/60 uppercase tracking-[0.3em] text-[10px] md:text-xs">Choose how you'd like to manage your account today</p>
+        </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Tenant Card */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => selectRole('tenant')}
-            className="group relative overflow-hidden bg-secondary border border-white/10 rounded-3xl p-10 text-left transition-all hover:border-accent/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.1)] shadow-xl"
-          >
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-accent/20 transition-colors">
-                <Key className="w-8 h-8 text-accent" />
-              </div>
-              <h2 className="text-3xl font-serif text-primary mb-4 italic">Tenant Portal</h2>
-              <p className="text-primary/60 mb-8 max-w-sm">
-                Access your saved properties, manage your search alerts, and track your active enquiries.
-              </p>
-              <div className="flex items-center text-accent font-bold uppercase tracking-widest text-xs gap-2">
-                Enter Portal <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </div>
-            </div>
-            
-            {/* Background Decorative Element */}
-            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-          </motion.button>
-
+        <div className="grid md:grid-cols-2 gap-8">
           {/* Landlord Card */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => selectRole('landlord')}
-            className="group relative overflow-hidden bg-secondary border border-white/10 rounded-3xl p-10 text-left transition-all hover:border-accent/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.1)] shadow-xl"
+            className="group relative overflow-hidden bg-[#140526] border border-accent/20 rounded-[2.5rem] p-12 text-left transition-all hover:border-accent shadow-[0_0_40px_rgba(212,175,55,0.05)] hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] flex flex-col items-center text-center h-full"
           >
-            <div className="relative z-10">
-              <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-accent/20 transition-colors">
-                <Briefcase className="w-8 h-8 text-accent" />
-              </div>
-              <h2 className="text-3xl font-serif text-primary mb-4 italic">Landlord Portal</h2>
-              <p className="text-primary/60 mb-8 max-w-sm">
-                Manage your listings, view valuation reports, and track leads for your properties.
-              </p>
-              <div className="flex items-center text-accent font-bold uppercase tracking-widest text-xs gap-2">
-                Enter Portal <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </div>
+            <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+              <Briefcase className="w-10 h-10 text-accent" />
             </div>
-            
-            {/* Background Decorative Element */}
-            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <h2 className="text-4xl font-serif text-white mb-6 uppercase tracking-widest font-bold">Landlord Portal</h2>
+            <p className="text-white/60 mb-10 max-w-sm text-sm leading-relaxed">
+              Manage your listings, access valuation reports, and track leads for your properties seamlessly.
+            </p>
+            <div className="mt-auto px-10 py-5 w-full bg-accent text-[#140526] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] flex items-center justify-center gap-3 transition-colors group-hover:bg-[#0a2f1d] group-hover:text-accent border border-transparent group-hover:border-accent">
+              Enter Portal <ArrowRight className="w-4 h-4" />
+            </div>
           </motion.button>
 
-          {/* Agent Card */}
-          {isAgentUser && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => selectRole('agent')}
-              className="group relative overflow-hidden bg-secondary border border-white/10 rounded-3xl p-10 text-left transition-all hover:border-accent/40 hover:shadow-[0_0_30px_rgba(212,175,55,0.1)] shadow-xl"
-            >
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-accent/20 transition-colors">
-                  <ShieldCheck className="w-8 h-8 text-accent" />
-                </div>
-                <h2 className="text-3xl font-serif text-accent mb-4 italic">Agent Portal</h2>
-                <p className="text-primary/60 mb-8 max-w-sm">
-                  Supervise portfolio, onboard landlords, and publish compliant listings on behalf of clients.
-                </p>
-                <div className="flex items-center text-accent font-bold uppercase tracking-widest text-xs gap-2">
-                  Enter Portal <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </div>
-              </div>
-              
-              {/* Background Decorative Element */}
-              <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            </motion.button>
-          )}
+          {/* Tenant Card */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => selectRole('tenant')}
+            className="group relative overflow-hidden bg-[#140526] border border-accent/20 rounded-[2.5rem] p-12 text-left transition-all hover:border-accent shadow-[0_0_40px_rgba(212,175,55,0.05)] hover:shadow-[0_0_40px_rgba(212,175,55,0.15)] flex flex-col items-center text-center h-full"
+          >
+            <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+              <Key className="w-10 h-10 text-accent" />
+            </div>
+            <h2 className="text-4xl font-serif text-white mb-6 uppercase tracking-widest font-bold">Tenant Portal</h2>
+            <p className="text-white/60 mb-10 max-w-sm text-sm leading-relaxed">
+              Access your saved properties, manage your search alerts, and track your active enquiries easily.
+            </p>
+            <div className="mt-auto px-10 py-5 w-full bg-[#0a2f1d] text-accent border border-accent rounded-xl font-black uppercase tracking-[0.3em] text-[12px] flex items-center justify-center gap-3 transition-all hover:bg-accent hover:text-[#140526]">
+              Enter Portal <ArrowRight className="w-4 h-4" />
+            </div>
+          </motion.button>
         </div>
       </div>
     </div>

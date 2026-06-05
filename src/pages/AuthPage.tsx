@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import OTPInput from '../components/OTPInput';
 import { auth } from '../lib/firebase';
@@ -21,7 +21,6 @@ export default function AuthPage() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [policyViolations, setPolicyViolations] = useState<{ notificationMessage: string }[]>([]);
   
@@ -56,8 +55,12 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      const { sendPasswordResetEmail } = await import('firebase/auth');
-      await sendPasswordResetEmail(auth, resetEmail);
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth?mode=resetPassword`,
+      });
+      if (error) throw error;
+      
       setResetSuccess(true);
       showNotification("Reset link sent successfully to your email!", "gold");
     } catch (err: any) {
@@ -84,12 +87,11 @@ export default function AuthPage() {
     }
     setLoading(true);
     try {
-      const { confirmPasswordReset } = await import('firebase/auth');
-      const params = new URLSearchParams(window.location.search);
-      const oobCode = params.get('oobCode');
-      if (!oobCode) throw new Error("Invalid or missing reset code.");
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.auth.updateUser({ password });
       
-      await confirmPasswordReset(auth, oobCode, password);
+      if (error) throw error;
+      
       showNotification("Password changed successfully! You can now log in.", "gold");
       setIsResettingPassword(false);
       setIsLogin(true);
@@ -101,15 +103,6 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseVerifyModal = () => {
-    setShowVerifyModal(false);
-    setIsLogin(true);
-    setSignupStep(0);
-    setError('');
-    setPassword('');
-    setConfirmPassword('');
   };
 
   useEffect(() => {
@@ -147,19 +140,42 @@ export default function AuthPage() {
       return;
     }
 
+    // Set first role as both/landlord/tenant conditionally or keep null so they select next
+    setRole(null);
+    setSignupStep(1); // Proceed to role selection screen
+  };
+
+  const executeSignup = async () => {
+    if (!role) {
+      setError("Please select a profile type.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } = await import('firebase/auth');
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            displayName: name,
+            role: role
+          },
+          emailRedirectTo: `${window.location.origin}/auth?mode=verifyEmail`
+        }
+      });
       
-      await updateProfile(userCredential.user, { displayName: name });
+      if (error) {
+         throw error;
+      }
 
-      if (userCredential.user) {
+      if (data.user) {
         try {
           const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
           const { db } = await import('../lib/firebase');
-          await setDoc(doc(db, 'users', userCredential.user.uid), {
-            uid: userCredential.user.uid,
+          await setDoc(doc(db, 'users', data.user.id), {
+            uid: data.user.id,
             name: name,
             email: email,
             role: role!,
@@ -175,11 +191,9 @@ export default function AuthPage() {
           console.warn("Could not pre-create user Firestore profile. This will be automatically created on first verification login:", dbErr);
         }
       }
-      
-      await sendEmailVerification(userCredential.user);
 
       showNotification("Check your email for confirmation!", "gold");
-      setShowVerifyModal(true);
+      navigate('/', { state: { showVerifyModal: true } });
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -210,11 +224,15 @@ export default function AuthPage() {
 
   const resendEmailCode = async () => {
     try {
-      if (auth.currentUser) {
-        const { sendEmailVerification } = await import('firebase/auth');
-        await sendEmailVerification(auth.currentUser);
-        showNotification("Verification email resent", "gold");
-      }
+      const { supabase } = await import('../lib/supabase');
+      await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth?mode=verifyEmail`
+        }
+      });
+      showNotification("Verification email resent", "gold");
     } catch (err) {
       console.error("Failed to resend email:", err);
     }
@@ -231,18 +249,34 @@ export default function AuthPage() {
 
     setLoading(true);
     setPolicyViolations([]);
-    try {
-      const { signInWithEmailAndPassword } = await import('firebase/auth');
-      await signInWithEmailAndPassword(auth, email, password);
+    
+    let signedIn = false;
 
-      showNotification("Signed in successfully!", "gold");
-      const from = (location.state as any)?.from?.pathname || '/';
-      navigate(from, { replace: true });
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error: supabaseErr } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (supabaseErr) {
+        throw supabaseErr;
+      }
+      signedIn = true;
+
+      if (signedIn) {
+        showNotification("Signed in successfully!", "gold");
+        const from = (location.state as any)?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      }
     } catch (err: any) {
+      console.error("Sign-in errors across backends:", err);
       const msg = err.message?.toLowerCase() || '';
-      if (msg.includes('invalid-credential') || msg.includes('wrong-password')) {
+      if (msg.includes('email not confirmed')) {
+        navigate('/', { state: { showVerifyModal: true } });
+      } else if (msg.includes('invalid') || msg.includes('wrong') || msg.includes('credentials') || msg.includes('auth/wrong-password')) {
         setError("one of the details is incorrect");
-      } else if (msg.includes('user-not-found')) {
+      } else if (msg.includes('user not found') || msg.includes('not exist') || msg.includes('auth/user-not-found')) {
         setError("You haven't made an account");
       } else {
         setError("user should retry");
@@ -297,66 +331,72 @@ export default function AuthPage() {
     </div>
   );
 
-  const renderRoleSelection = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-serif text-white italic mb-2 tracking-widest uppercase font-bold">PROFILE TYPE</h2>
-        <p className="text-[10px] text-accent font-black uppercase tracking-[0.3em] mb-8 italic">Choose your identity</p>
-      </div>
+  const renderRoleSelection = () => {
+    const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
+    const isAgentUser = email && allowedAgentEmails.includes(email.toLowerCase().trim());
 
-      <div className="grid gap-4">
-        {[
-          { id: 'tenant', label: 'Tenant', icon: Mail, desc: 'Browse and save properties' },
-          { id: 'landlord', label: 'Landlord', icon: Briefcase, desc: 'Manage and list properties' },
-          { id: 'agent', label: 'Agent', icon: Briefcase, desc: 'Manage landlord properties' },
-          { id: 'both', label: 'Both', icon: User, desc: 'Access all HOE features' }
-        ].map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setRole(item.id as any)}
-            className={cn(
-              "p-6 rounded-[2rem] border-2 transition-all text-left flex items-center justify-between group",
-              role === item.id 
-                ? "border-accent bg-accent/5 shadow-2xl shadow-accent/5" 
-                : "border-white/5 bg-[#0c0214]/40 hover:border-accent/20"
-            )}
-          >
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
-                role === item.id ? "bg-accent text-[#0c0214]" : "bg-white/5 text-accent/30 group-hover:bg-accent/10"
-              )}>
-                <item.icon className="w-6 h-6" />
-              </div>
-              <div>
-                <span className={cn(
-                  "font-black uppercase tracking-[0.2em] text-[10px] block mb-0.5",
-                  role === item.id ? "text-accent" : "text-white/60"
+    const items = [
+      { id: 'landlord', label: 'Landlord Portal', icon: Briefcase, desc: 'Manage and list properties' },
+      { id: 'tenant', label: 'Tenant Portal', icon: User, desc: 'Browse and save properties' },
+      ...(isAgentUser ? [{ id: 'agent', label: 'Agent Portal', icon: ShieldCheck, desc: 'Manage client portfolios' }] : [])
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-serif text-white italic mb-2 tracking-widest uppercase font-bold">PROFILE TYPE</h2>
+          <p className="text-[10px] text-accent font-black uppercase tracking-[0.3em] mb-8 italic">Choose your identity</p>
+        </div>
+
+        <div className="grid gap-4">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setRole(item.id as any)}
+              className={cn(
+                "p-6 rounded-[2rem] border-2 transition-all text-left flex items-center justify-between group",
+                role === item.id 
+                  ? "border-accent bg-accent/5 shadow-2xl shadow-accent/5" 
+                  : "border-white/5 bg-[#0c0214]/40 hover:border-accent/20"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
+                  role === item.id ? "bg-accent text-[#0c0214]" : "bg-white/5 text-accent/30 group-hover:bg-accent/10"
                 )}>
-                  {item.label}
-                </span>
-                <span className="text-[9px] text-white/20 uppercase tracking-widest font-medium">{item.desc}</span>
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className={cn(
+                    "font-black uppercase tracking-[0.2em] text-[10px] block mb-0.5",
+                    role === item.id ? "text-accent" : "text-white/60"
+                  )}>
+                    {item.label}
+                  </span>
+                  <span className="text-[9px] text-white/20 uppercase tracking-widest font-medium">{item.desc}</span>
+                </div>
               </div>
-            </div>
-            {role === item.id && (
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                <CheckCircle2 className="w-5 h-5 text-accent shadow-glow" />
-              </motion.div>
-            )}
-          </button>
-        ))}
-      </div>
+              {role === item.id && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                  <CheckCircle2 className="w-5 h-5 text-accent shadow-glow" />
+                </motion.div>
+              )}
+            </button>
+          ))}
+        </div>
 
-      <button
-        disabled={!role}
-        onClick={() => setSignupStep(1)}
-        className="w-full mt-8 py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-3 border border-accent/40 active:scale-95 disabled:opacity-30 disabled:grayscale"
-      >
-        Set Credentials
-        <ArrowRight className="w-4 h-4" />
-      </button>
-    </div>
-  );
+        <button
+          disabled={!role || loading}
+          onClick={executeSignup}
+          className="w-full mt-8 py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-3 border border-accent/40 active:scale-95 disabled:opacity-30 disabled:grayscale"
+        >
+          {loading ? 'Processing...' : 'Create HOE Account'}
+          {!loading && <ArrowRight className="w-4 h-4" />}
+        </button>
+      </div>
+    );
+  };
 
   const renderForgotPassword = () => (
     <div className="space-y-6">
@@ -569,7 +609,7 @@ export default function AuthPage() {
           renderForgotPassword()
         ) : authStep !== 'credentials' ? (
           renderVerification(authStep === 'verify-email' ? 'email' : 'phone')
-        ) : (!isLogin && signupStep === 0) ? (
+        ) : (!isLogin && signupStep === 1) ? (
           renderRoleSelection()
         ) : (
           <>
@@ -702,7 +742,7 @@ export default function AuthPage() {
                 disabled={loading}
                 className="w-full py-5 bg-[#0a2f1d] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] hover:bg-accent hover:text-primary transition-all shadow-2xl shadow-accent/10 flex items-center justify-center gap-2 border border-accent/40 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
               >
-                {loading ? 'Processing...' : isLogin ? 'Sign In Portal' : 'Create HOE Account'}
+                {loading ? 'Processing...' : isLogin ? 'Sign In Portal' : 'Set Profile Type'}
                 {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
             </form>
@@ -758,44 +798,6 @@ export default function AuthPage() {
           </>
         )}
       </motion.div>
-
-      <AnimatePresence>
-        {showVerifyModal && (
-          <div className="fixed inset-0 bg-[#0c0214]/90 backdrop-blur-[6px] z-[1000] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#140526] border border-accent/40 p-8 md:p-10 rounded-[2rem] w-full max-w-sm relative shadow-2xl text-center"
-            >
-              <button 
-                type="button"
-                onClick={handleCloseVerifyModal}
-                className="absolute top-4 right-5 bg-transparent border-none text-white/50 hover:text-accent text-2xl cursor-pointer transition-colors"
-                style={{ fontSize: '1.5rem' }}
-              >
-                &times;
-              </button>
-              
-              <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent/30">
-                <span className="text-accent text-[1.4rem]">✉️</span>
-              </div>
-              <h3 className="text-white text-[12px] font-black uppercase tracking-[0.2em] mb-4">Verify Your Email</h3>
-              <p className="text-white/60 text-[11px] leading-relaxed mb-8 uppercase tracking-[0.05em]">
-                A secure verification link has been sent to your inbox. Please click the link to activate your House of Eden portal access.
-              </p>
-              
-              <button 
-                type="button"
-                onClick={handleCloseVerifyModal} 
-                className="w-full py-4 bg-[#0a2f1d] hover:bg-accent hover:text-[#0c0214] text-[#D4AF37] rounded-xl font-black uppercase tracking-[0.3em] text-[12px] md:text-[13px] border border-accent/40 transition-all shadow-xl hover:scale-[1.02] active:scale-95"
-              >
-                I Understand
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 

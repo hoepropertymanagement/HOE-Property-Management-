@@ -38,6 +38,17 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { SavedPropertiesProvider } from './context/SavedPropertiesContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
+import { supabase } from './lib/supabase';
+
+function AuthDebug() {
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[supabase auth]", { event, hasSession: !!session });
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  return null;
+}
 
 function RedirectListener() {
   const { showNotification } = useNotification();
@@ -138,6 +149,7 @@ function ImpersonationBanner() {
 export default function App() {
   return (
     <Router>
+      <AuthDebug />
       <ScrollToTop />
       <NotificationProvider>
         <RedirectListener />

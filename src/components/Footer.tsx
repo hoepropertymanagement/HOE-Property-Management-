@@ -92,6 +92,24 @@ export default function Footer() {
 
           {/* PRS Compliance Section */}
           <div className="flex flex-col items-center md:items-end gap-3 text-center md:text-right shrink-0">
+            {/* Rent Guarantor Partner */}
+            <div className="flex flex-col items-center md:items-end gap-2 mb-4">
+              <p className="text-[#a3a3a3] text-[9px] font-bold uppercase tracking-widest mb-1">Partners With</p>
+              <a 
+                href="https://www.rentguarantor.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block bg-white px-2 py-1.5 rounded shadow-md hover:bg-gray-50 transition-colors"
+                style={{ textDecoration: 'none' }}
+              >
+                <img 
+                  src="https://www.rentguarantor.com/images/rgv2/rg-logo.svg" 
+                  alt="Rent Guarantor" 
+                  className="h-8 object-contain"
+                />
+              </a>
+            </div>
+
             <div className="flex flex-col items-center md:items-end gap-2">
               <a 
                 href="https://www.theprs.co.uk/" 
