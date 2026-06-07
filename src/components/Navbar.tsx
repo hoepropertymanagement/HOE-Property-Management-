@@ -14,7 +14,7 @@ export default function Navbar() {
   const location = useLocation();
   const isSearchPage = location.pathname === '/search';
 
-  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
   const isAgent = profile?.role === 'agent' || (user?.email && allowedAgentEmails.includes(user.email.toLowerCase()));
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function Navbar() {
             <Link to="/" className={getLinkClass(isHomeActive)}>Search</Link>
             <Link to="/search?mode=Rent" className={getLinkClass(isRentActive)}>Lettings/Buy</Link>
             <Link to="/contact" className={getLinkClass(location.pathname === '/contact')}>Contact</Link>
-            <Link to="/dashboard" className={getLinkClass(isDashboardActive)}>Dashboard</Link>
+            <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} className={getLinkClass(isDashboardActive)}>Dashboard</Link>
           </div>
 
           <div className={cn(
@@ -234,7 +234,7 @@ export default function Navbar() {
                   <Link to="/" className={getMobileLinkClass(isHomeActive)} onClick={() => setIsOpen(false)}>Home</Link>
                   <Link to="/search?mode=Rent" className={getMobileLinkClass(isRentActive)} onClick={() => setIsOpen(false)}>Lettings/Buy</Link>
                   <Link to="/contact" className={getMobileLinkClass(location.pathname === '/contact')} onClick={() => setIsOpen(false)}>Contact</Link>
-                  <Link to="/dashboard" className={getMobileLinkClass(isDashboardActive)} onClick={() => setIsOpen(false)}>Dashboard</Link>
+                  <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} className={getMobileLinkClass(isDashboardActive)} onClick={() => setIsOpen(false)}>Dashboard</Link>
                   {user && (
                     <Link to="/settings" className={getMobileLinkClass(location.pathname === '/settings')} onClick={() => setIsOpen(false)}>Settings</Link>
                   )}

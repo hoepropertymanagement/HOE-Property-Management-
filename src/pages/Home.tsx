@@ -44,24 +44,14 @@ export default function Home() {
         );
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        
-        // Merge with system memory mock properties
-        const merged = [...props];
-
-        mockProperties.slice(0, 3).forEach(mockItem => {
-          if (!merged.some(p => p.id === mockItem.id)) {
-            merged.push(mockItem);
-          }
-        });
-        setFeaturedProperties(merged.slice(0, 3));
+        setFeaturedProperties(props);
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           console.error("Permission Denied: Unable to access featured properties. Please ensure the Firestore security rules allow public reading of live properties.");
         } else {
           console.error("Error fetching featured properties:", err);
         }
-        // Fallback purely to sliced system memory mock properties
-        setFeaturedProperties(mockProperties.slice(0, 3));
+        setFeaturedProperties([]);
       } finally {
         setLoadingFeatured(false);
       }

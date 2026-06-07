@@ -1,19 +1,48 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
-import { mockProperties } from '../constants/mockData';
+import { Property } from '../constants/mockData';
 import PropertyCard from '../components/PropertyCard';
-import { MessageSquare, Bell, Clock, ArrowUpRight, Heart, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import { MessageSquare, Bell, Clock, ArrowUpRight, Heart, ArrowLeft, LayoutDashboard, Loader2 } from 'lucide-react';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { db } from '../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 export default function TenantDashboard() {
   const { savedIds } = useSavedProperties();
-  const { profile } = useAuth();
-  const savedProperties = mockProperties.filter(p => savedIds.has(p.id));
+  const { profile, user } = useAuth();
+  const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
   const isCollapsed = useSidebarCollapse();
+
+  useEffect(() => {
+    async function fetchSaved() {
+      if (savedIds.size === 0) {
+        setSavedProperties([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const querySnapshot = await getDocs(collection(db, 'properties'));
+        const allProps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+        const filtered = allProps.filter(p => savedIds.has(p.id));
+        setSavedProperties(filtered);
+      } catch (err) {
+        console.error("Error fetching saved properties:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSaved();
+  }, [savedIds]);
+
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
+  const isAgentUser = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
 
   return (
     <div className="bg-secondary min-h-screen">
@@ -32,11 +61,11 @@ export default function TenantDashboard() {
               <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
               Exit to Home
             </Link>
-            {profile?.role === 'both' && (
+            {(profile?.role === 'both' || isAgentUser) && (
               <>
                 <div className="w-px h-3 bg-primary/20" />
                 <Link 
-                  to="/dashboard" 
+                  to="/dashboard?reselect=true" 
                   className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent hover:text-accent/80 transition-all w-fit group"
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
@@ -81,7 +110,12 @@ export default function TenantDashboard() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {savedProperties.length > 0 ? (
+                  {loading ? (
+                    <div className="col-span-full py-10 flex flex-col items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-accent animate-spin mb-2" />
+                      <p className="text-[10px] text-primary/30 uppercase tracking-widest font-black">Retrieving Saved Homes...</p>
+                    </div>
+                  ) : savedProperties.length > 0 ? (
                     savedProperties.map(p => (
                       <PropertyCard key={p.id} property={p} />
                     ))

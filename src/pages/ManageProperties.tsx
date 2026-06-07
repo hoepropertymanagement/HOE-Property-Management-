@@ -16,7 +16,6 @@ import { Property, mockProperties } from '../constants/mockData';
 import { cn } from '../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Property, mockProperties } from '../constants/mockData';
 
 export default function ManageProperties() {
   const isCollapsed = useSidebarCollapse();
@@ -49,22 +48,10 @@ export default function ManageProperties() {
           ...doc.data()
         })) as Property[];
         
-        // Merge with mock properties
-        const merged = [...props];
-        mockProperties.forEach(mockItem => {
-          if (!merged.some(p => p.id === mockItem.id)) {
-            merged.push({
-              ...mockItem,
-              landlordId: landlordId
-            });
-          }
-        });
-        setProperties(merged);
+        setProperties(props);
       } catch (err) {
         console.error("Error fetching properties:", err);
-        // Fallback to mock
-        const fallback = mockProperties.map(m => ({ ...m, landlordId: landlordId }));
-        setProperties(fallback);
+        setProperties([]);
       } finally {
         setLoading(false);
       }
@@ -74,10 +61,10 @@ export default function ManageProperties() {
 
   const handleUpdateStatus = async (propertyId: string, newStatus: string) => {
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
+      const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
       const { db: firestoreDb } = await import('../lib/firebase');
       const docRef = doc(firestoreDb, 'properties', propertyId);
-      await updateDoc(docRef, { status: newStatus, updatedAt: new Date().toISOString() });
+      await updateDoc(docRef, { status: newStatus, updatedAt: serverTimestamp() });
         
       setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: newStatus } as Property : p));
     } catch (err) {
@@ -87,10 +74,10 @@ export default function ManageProperties() {
 
   const handleArchiveProperty = async (propertyId: string) => {
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
+      const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
       const { db: firestoreDb } = await import('../lib/firebase');
       const docRef = doc(firestoreDb, 'properties', propertyId);
-      await updateDoc(docRef, { status: 'Archived', updatedAt: new Date().toISOString() });
+      await updateDoc(docRef, { status: 'Archived', updatedAt: serverTimestamp() });
 
       setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, status: 'Archived' } as Property : p));
     } catch (err) {

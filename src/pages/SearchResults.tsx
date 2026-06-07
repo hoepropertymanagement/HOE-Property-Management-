@@ -134,7 +134,7 @@ export default function SearchResults() {
   const [mapZoom, setMapZoom] = useState(initialQuery && CITY_COORDS[initialQuery.toLowerCase()] ? 12 : 13);
   const [minPrice, setMinPrice] = useState(searchParams.get('min') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('max') || '');
-  const [radius, setRadius] = useState<number>(5); // Default 5 miles
+  const [radius, setRadius] = useState<number>(1); // Default 1 mile
   const [searchMode, setSearchMode] = useState<'Buy' | 'Rent'>(initialMode);
   const [minBeds, setMinBeds] = useState<string | null>(null);
   const [maxBeds, setMaxBeds] = useState<string | null>(null);
@@ -152,7 +152,7 @@ export default function SearchResults() {
     1000000, 1250000, 1500000, 1750000, 2000000, 2500000, 3000000, 4000000, 5000000, 7500000, 10000000
   ];
 
-  const RADIUS_OPTIONS = [0.5, 1, 3, 5, 10, 12, 15, 20, 25, 50, 100];
+  const RADIUS_OPTIONS = [0.5, 1, 2, 5, 10, 12, 15, 20, 25, 50, 100];
 
   const priceOptions = searchMode === 'Buy' ? BUYING_PRICE_OPTIONS : RENTING_PRICE_OPTIONS;
 
@@ -163,7 +163,7 @@ export default function SearchResults() {
     setQuery('');
     setMinPrice('');
     setMaxPrice('');
-    setRadius(5);
+    setRadius(1);
     setSelectedType(null);
     setMinBeds(null);
     setMaxBeds(null);
@@ -220,24 +220,14 @@ export default function SearchResults() {
         const q = fireQuery(collection(db, 'properties'), fireWhere('status', 'in', ['Live', 'Let Agreed']));
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        
-        // Merge with system-defined mock properties so the core catalog never disappears
-        const merged = [...props];
-
-        mockProperties.forEach(mockItem => {
-          if (!merged.some(p => p.id === mockItem.id)) {
-            merged.push(mockItem);
-          }
-        });
-        setProperties(merged);
+        setProperties(props);
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           console.error("Access Restricted: Your search query was blocked by security rules. Ensure you are only querying 'Live' properties or your own listings.");
         } else {
           console.error("Error fetching properties:", err);
         }
-        // Graceful fallback purely to systems memory mock properties
-        setProperties(mockProperties);
+        setProperties([]);
       } finally {
         setIsLoading(false);
       }
@@ -341,6 +331,47 @@ export default function SearchResults() {
       setMapZoom(14);
     }
   };
+
+  // Synchronize map center and radius circle with active search or query changes
+  useEffect(() => {
+    const searchString = (activeSearch || query || '').trim().toLowerCase();
+    if (!searchString) return;
+
+    // Check if it's already a well-known city coordinate
+    const cityData = CITY_COORDS[searchString];
+    if (cityData) {
+      setMapCenter(cityData);
+      setMapZoom(12);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            if (!isNaN(lat) && !isNaN(lon)) {
+              setMapCenter(prev => {
+                // Prevent infinite loop if coordinate change is negligible
+                const diff = Math.abs(prev.lat - lat) + Math.abs(prev.lng - lon);
+                if (diff > 0.005) {
+                  return { lat, lng: lon };
+                }
+                return prev;
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Fuzzy geocoding failed for search text:", error);
+      }
+    }, 600); // 600ms debounce to respect Nominatim usage rules and prevent lag
+
+    return () => clearTimeout(timer);
+  }, [activeSearch, query]);
 
   useEffect(() => {
     const handleScroll = () => {

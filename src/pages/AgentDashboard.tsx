@@ -332,10 +332,10 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
               {/* Portal Switch and actions */}
               <div className="flex flex-wrap gap-4 relative z-25">
                 <Link 
-                  to="/dashboard"
+                  to="/dashboard?reselect=true"
                   className="px-6 py-3 bg-white border border-slate-200 hover:border-slate-400 text-slate-700 font-bold rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm"
                 >
-                  <LayoutDashboard className="w-3.5 h-3.5 text-teal-600" /> Portal Gateway
+                  <LayoutDashboard className="w-3.5 h-3.5 text-teal-600" /> Reselect Portal
                 </Link>
                 <button
                   onClick={() => setShowSelectLandlordToPublishModal(true)}

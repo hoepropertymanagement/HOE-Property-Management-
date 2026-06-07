@@ -43,18 +43,7 @@ export default function Valuation() {
         );
         const querySnapshot = await getDocs(qProperties);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        
-        // Merge with system-defined mock properties dynamically owned by current landlord in-memory
-        const merged = [...props];
-        mockProperties.forEach(mockItem => {
-          if (!merged.some(p => p.id === mockItem.id)) {
-            merged.push({
-              ...mockItem,
-              landlordId: landlordId
-            });
-          }
-        });
-        setProperties(merged);
+        setProperties(props);
 
         // 2. Fetch logged views
         const qViews = query(
@@ -66,9 +55,7 @@ export default function Valuation() {
         setRealViews(loggedViews);
       } catch (err) {
         console.error("Error fetching analytics data:", err);
-        // Robust fallback
-        const fallback = mockProperties.map(m => ({ ...m, landlordId: landlordId }));
-        setProperties(fallback);
+        setProperties([]);
       } finally {
         setLoading(false);
       }

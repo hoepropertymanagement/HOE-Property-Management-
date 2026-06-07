@@ -25,6 +25,9 @@ export default function LandlordDashboard() {
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
+  const isAgentUser = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
+
   const landlordId = localStorage.getItem('impersonated_landlord_id') || user?.uid;
 
   useEffect(() => {
@@ -88,11 +91,11 @@ export default function LandlordDashboard() {
             >
               <ArrowLeft className="w-3 h-3" /> Exit to Home
             </Link>
-            {profile?.role === 'both' && (
+            {(profile?.role === 'both' || isAgentUser) && (
               <>
                 <div className="w-px h-3 bg-primary/20" />
                 <Link 
-                  to="/dashboard" 
+                  to="/dashboard?reselect=true" 
                   className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-accent hover:text-accent/80 transition-colors w-fit"
                 >
                   <LayoutDashboard className="w-3 h-3" /> Back to Portal Choice

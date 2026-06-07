@@ -11,11 +11,12 @@ import {
   MessageSquare, Search, Filter, MoreVertical, 
   Send, Phone, Video, Info, ArrowLeft, 
   CheckCheck, Clock, Paperclip, Smile, Loader2, User as UserIcon,
-  Pin, PinOff, X, FileText, Calendar, Check, XCircle
+  Pin, PinOff, X, FileText, Calendar, Check, XCircle, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { db } from '../lib/firebase';
 import { 
   collection, query as fireQuery, where as fireWhere, onSnapshot, orderBy, 
@@ -137,6 +138,9 @@ const ViewingRequestWidget = ({
   const isConfirmed = payload.status === 'confirmed';
   const isDeclined = payload.status === 'declined';
 
+  // Extract selected timeframe option
+  const timeframe = payload.specificDate || 'This Week';
+
   // Predefined slots for This Week
   const thisWeekSlots = [
     "Wednesday 27 May - 10:00 AM",
@@ -154,16 +158,16 @@ const ViewingRequestWidget = ({
   ];
 
   return (
-    <div className="w-full max-w-sm rounded-[2rem] border border-primary/10 overflow-hidden text-left bg-white text-primary shadow-xl">
-      <div className="bg-accent/10 px-5 py-4 flex items-center justify-between border-b border-accent/10">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-accent/20 rounded-xl text-accent shadow-sm">
+    <div className="w-full max-w-sm rounded-[2rem] border border-accent/20 overflow-hidden text-left bg-[#0B071E] text-white shadow-2xl relative">
+      <div className="bg-gradient-to-r from-[#170E3A] to-[#0F0A2B] px-5 py-4 flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-3 bg-transparent">
+          <div className="p-2 bg-accent/25 rounded-xl text-accent shadow-md shadow-accent/5">
             <Calendar className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-black uppercase tracking-widest text-accent leading-tight">Viewing Verification</h4>
-            <span className="text-[10px] uppercase font-bold text-primary/40 block mt-0.5">
-              {isConfirmed ? 'Booking Confirmed' : isDeclined ? 'Viewing Declined' : 'Action Required'}
+            <h4 className="text-xs font-black uppercase tracking-widest text-accent leading-tight">Eden Auto-Verify</h4>
+            <span className="text-[10px] uppercase font-bold text-white/55 block mt-0.5">
+              {isConfirmed ? 'Booking Confirmed' : isDeclined ? 'Viewing Declined' : `Timeframe: ${timeframe}`}
             </span>
           </div>
         </div>
@@ -175,46 +179,46 @@ const ViewingRequestWidget = ({
         )}
       </div>
       
-      <div className="p-5 space-y-4">
+      <div className="p-5 space-y-4 bg-[#0B071E]">
         {isConfirmed ? (
-          <div className="p-5 bg-green-500/10 rounded-2xl border border-green-500/20 text-center space-y-3">
-             <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
+          <div className="p-5 bg-green-500/10 rounded-2xl border border-green-500/30 text-center space-y-3">
+             <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
                <Check className="w-6 h-6" />
              </div>
              <div>
-               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-700 block mb-1">Confirmed Viewing Appointment</span>
-               <span className="text-sm font-bold text-green-800 block p-2.5 bg-green-500/5 rounded-xl border border-green-500/10">
+               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-400 block mb-1">Confirmed Viewing Appointment</span>
+               <span className="text-xs font-bold text-green-200 block p-2.5 bg-green-500/5 rounded-xl border border-green-500/15">
                  {payload.confirmedDateTime}
                </span>
-               <p className="text-[10px] text-green-700/60 font-bold uppercase tracking-wider mt-2">Verified secure by HOE Property Management</p>
+               <p className="text-[10px] text-green-400/60 font-bold uppercase tracking-wider mt-2">Verified secure by HOE Property Management</p>
              </div>
           </div>
         ) : isDeclined ? (
-          <div className="p-5 bg-red-500/10 rounded-2xl border border-red-500/20 text-center space-y-2">
-             <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-700 flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
+          <div className="p-5 bg-red-500/10 rounded-2xl border border-red-500/30 text-center space-y-2">
+             <div className="w-12 h-12 rounded-full bg-red-500/20 text-[#ff4444] flex items-center justify-center mx-auto shadow-sm animate-fadeIn">
                <XCircle className="w-6 h-6" />
              </div>
              <div>
-               <span className="text-[10px] font-black uppercase tracking-[0.28em] text-red-600 block">Request Rejected</span>
-               <p className="text-xs text-red-700/70 mt-1">This viewing verification has been declined.</p>
+               <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#ff4444] block">Request Rejected</span>
+               <p className="text-xs text-red-300/70 mt-1">This viewing verification has been declined.</p>
              </div>
           </div>
         ) : isPending && !choosingDate ? (
           <div className="space-y-4">
-            <p className="text-xs text-primary/70 leading-relaxed font-semibold">
-               An automated booking verification card has been generated. Press **Book / Verify** to accept and select a specific viewing date from our availability list.
+            <p className="text-xs text-white/70 leading-relaxed font-semibold">
+               An automated booking verification card has been generated for timeframe <span className="text-accent underline font-black">{timeframe}</span>. Press **Book / Verify** to accept and select a specific viewing slot.
             </p>
             <div className="pt-2 flex flex-col gap-2">
               <button 
                 onClick={handleBookVerifyClick}
-                className="w-full bg-accent text-primary hover:bg-accent-hover font-bold py-3 px-4 rounded-xl shadow-lg shadow-accent/15 transition-all text-xs font-black text-center uppercase tracking-widest flex items-center justify-center gap-2 active:scale-[0.98] duration-100"
+                className="w-full bg-accent text-primary hover:bg-accent/90 font-black py-3 px-4 rounded-xl shadow-lg shadow-accent/15 transition-all text-xs text-center uppercase tracking-widest flex items-center justify-center gap-2 active:scale-[0.98] duration-100"
               >
                 <Check className="w-4 h-4" />
                 Book / Verify
               </button>
               <button 
                 onClick={handleDecline}
-                className="w-full bg-primary/5 hover:bg-primary/10 text-primary/50 font-bold py-2.5 px-4 rounded-xl border border-primary/5 transition-all text-[10px] font-black uppercase tracking-widest text-center"
+                className="w-full bg-white/5 hover:bg-white/10 text-white/50 font-bold py-2.5 px-4 rounded-xl border border-white/5 transition-all text-[10px] font-black uppercase tracking-widest text-center"
               >
                 Reject / Decline Request
               </button>
@@ -224,13 +228,13 @@ const ViewingRequestWidget = ({
           /* choosingDate state and selecting a slot */
           <div className="space-y-4 animate-fadeIn">
             <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-2 cursor-default">1. Choose Week Option</span>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-secondary rounded-xl border border-primary/5">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 block mb-2 cursor-default">1. Choose Week Option</span>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-white/5 rounded-xl border border-white/10">
                 {(['this_week', 'next_week', 'any_time'] as const).map((w) => (
                   <button
                     key={w}
                     onClick={() => setSelectedWeek(w)}
-                    className={`py-2 px-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all truncate ${selectedWeek === w ? 'bg-primary text-secondary' : 'text-primary/50 hover:bg-primary/5'}`}
+                    className={`py-2 px-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all truncate ${selectedWeek === w ? 'bg-accent text-primary' : 'text-white/60 hover:bg-white/5'}`}
                   >
                     {w === 'this_week' ? 'This Week' : w === 'next_week' ? 'Next Week' : 'Any Time'}
                   </button>
@@ -239,7 +243,7 @@ const ViewingRequestWidget = ({
             </div>
 
             <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 block mb-2 cursor-default">2. Select Your Viewing Slot</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 block mb-2 cursor-default">2. Select Your Viewing Slot</span>
               
               {selectedWeek === 'this_week' && (
                 <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
@@ -247,10 +251,10 @@ const ViewingRequestWidget = ({
                     <button
                       key={slot}
                       onClick={() => handleSelectSlot(slot)}
-                      className="w-full px-4 py-3 bg-secondary hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-primary/5 flex items-center justify-between group active:scale-[0.99] duration-100"
+                      className="w-full px-4 py-3 bg-white/5 hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-white/10 hover:border-accent flex items-center justify-between group active:scale-[0.99] duration-100 text-white"
                     >
                       <span className="truncate pr-2">{slot}</span>
-                      <Calendar className="w-3.5 h-3.5 text-primary/20 group-hover:text-primary/70 transition-colors shrink-0" />
+                      <Calendar className="w-3.5 h-3.5 text-white/20 group-hover:text-primary/70 transition-colors shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -262,27 +266,27 @@ const ViewingRequestWidget = ({
                     <button
                       key={slot}
                       onClick={() => handleSelectSlot(slot)}
-                      className="w-full px-4 py-3 bg-secondary hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-primary/5 flex items-center justify-between group active:scale-[0.99] duration-100"
+                      className="w-full px-4 py-3 bg-white/5 hover:bg-accent hover:text-primary rounded-xl text-left text-xs font-bold transition-all border border-white/10 hover:border-accent flex items-center justify-between group active:scale-[0.99] duration-100 text-white"
                     >
                       <span className="truncate pr-2">{slot}</span>
-                      <Calendar className="w-3.5 h-3.5 text-primary/20 group-hover:text-primary/70 transition-colors shrink-0" />
+                      <Calendar className="w-3.5 h-3.5 text-white/20 group-hover:text-primary/70 transition-colors shrink-0" />
                     </button>
                   ))}
                 </div>
               )}
 
               {selectedWeek === 'any_time' && (
-                <div className="bg-secondary/40 p-3 rounded-2xl border border-primary/5 space-y-3">
+                <div className="bg-white/5 p-3 rounded-2xl border border-white/10 space-y-3">
                   <input 
                     type="datetime-local" 
                     value={customDateTime}
                     onChange={(e) => setCustomDateTime(e.target.value)}
-                    className="w-full bg-white border border-primary/10 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
+                    className="w-full bg-[#110C35] text-white border border-white/20 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-accent"
                   />
                   <button 
                     onClick={handleConfirmCustom}
                     disabled={!customDateTime}
-                    className="w-full py-2.5 bg-primary disabled:opacity-55 text-secondary rounded-xl text-xs font-bold hover:bg-black transition-colors uppercase tracking-widest text-center"
+                    className="w-full py-2.5 bg-accent disabled:opacity-55 text-primary rounded-xl text-xs font-bold hover:bg-accent/90 transition-colors uppercase tracking-widest text-center"
                   >
                     Confirm Custom Time
                   </button>
@@ -290,11 +294,11 @@ const ViewingRequestWidget = ({
               )}
             </div>
 
-            <div className="pt-2 border-t border-primary/5">
+            <div className="pt-2 border-t border-white/10">
               <button 
                 type="button"
                 onClick={() => setChoosingDate(false)}
-                className="w-full text-center text-[10px] uppercase font-black tracking-widest text-primary/40 hover:text-primary transition-colors py-1"
+                className="w-full text-center text-[10px] uppercase font-black tracking-widest text-white/40 hover:text-white transition-colors py-1"
               >
                 Back to Options
               </button>
@@ -308,6 +312,7 @@ const ViewingRequestWidget = ({
 
 export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'agent' }) {
   const { user, profile } = useAuth();
+  const { showNotification } = useNotification();
   const { role: urlRole } = useParams();
   const [searchParams] = useSearchParams();
   const isCollapsed = useSidebarCollapse();
@@ -328,6 +333,9 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  const [showAutoVerifyComposer, setShowAutoVerifyComposer] = useState(false);
+  const [selectedComposeTimeframe, setSelectedComposeTimeframe] = useState<'This Week' | 'Next Week' | 'Any Time'>('This Week');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedAttachment, setSelectedAttachment] = useState<{
     dataUrl: string;
@@ -524,6 +532,42 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error("Failed to send message:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendAutoVerifyCard = async () => {
+    if (!selectedChatId || !user || sending) return;
+    setSending(true);
+    try {
+      const payloadObj: ViewingPayload = {
+        days: [selectedComposeTimeframe],
+        times: [],
+        specificDate: selectedComposeTimeframe,
+        status: 'pending'
+      };
+
+      const msgText = `[VIEWING_REQUEST]: ${JSON.stringify(payloadObj)}`;
+
+      await addDoc(collection(db, 'messages'), {
+        conversation_id: selectedChatId,
+        sender_id: user.uid,
+        body: msgText,
+        created_at: serverTimestamp()
+      });
+
+      // Update last message in conversation
+      await updateDoc(doc(db, 'conversations', selectedChatId), {
+        last_message: '📅 Viewing Request',
+        last_message_at: serverTimestamp()
+      });
+
+      setShowAutoVerifyComposer(false);
+      showNotification?.("Interactive Viewing Verification Card sent successfully!", "gold");
+    } catch (err) {
+      console.error("Failed to send verification card:", err);
+      showNotification?.("Failed to send verification card", "red");
     } finally {
       setSending(false);
     }
@@ -912,6 +956,66 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
                       </div>
                     )}
                     
+                    <AnimatePresence>
+                      {showAutoVerifyComposer && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 15, scale: 0.95 }} 
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                          className="bg-[#0B071E] border border-accent/30 rounded-[2.5rem] p-6 shadow-2xl relative mb-2 text-white max-w-sm ml-auto select-none overflow-hidden"
+                        >
+                          {/* Decorative subtle ambient lights */}
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-[30px] pointer-events-none" />
+                          <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#170E3A]/40 rounded-full blur-[40px] pointer-events-none" />
+
+                          <button 
+                            type="button" 
+                            onClick={() => setShowAutoVerifyComposer(false)}
+                            className="absolute top-5 right-5 text-white/40 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+
+                          <div className="flex items-center gap-2 mb-4 bg-transparent">
+                            <Sparkles className="w-4 h-4 text-accent animate-pulse" />
+                            <span className="text-[9px] font-black uppercase tracking-[0.22em] text-accent leading-none">House of Eden Auto-Verify</span>
+                          </div>
+
+                          <h4 className="text-base font-serif italic text-white mb-2 cursor-default">Book and Reject Chat Verification</h4>
+                          <p className="text-xs text-white/60 mb-5 leading-relaxed cursor-default">
+                            Compose and send an interactive viewing card directly to the listing owner. Select a preferred timeframe option:
+                          </p>
+
+                          <div className="grid grid-cols-3 gap-2 mb-5">
+                            {(['This Week', 'Next Week', 'Any Time'] as const).map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setSelectedComposeTimeframe(opt)}
+                                className={cn(
+                                  "py-3.5 px-1 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border duration-150",
+                                  selectedComposeTimeframe === opt
+                                    ? "bg-accent text-primary border-accent shadow-lg shadow-accent/15 font-black scale-[1.03]"
+                                    : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleSendAutoVerifyCard}
+                            disabled={sending}
+                            className="w-full bg-accent text-primary hover:bg-accent/90 transition-all font-black uppercase tracking-widest text-xs py-4 rounded-2xl shadow-lg shadow-accent/15 flex items-center justify-center gap-2 active:scale-[0.98]"
+                          >
+                            Confirm & Send Chat Card
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <div className="bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] shadow-2xl border border-primary/5 flex items-center gap-4 shadow-primary/10 w-full">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
@@ -920,6 +1024,20 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
                         title="Attach Photo or Document"
                       >
                         <Paperclip className="w-5 h-5" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setShowAutoVerifyComposer(!showAutoVerifyComposer)}
+                        disabled={sending}
+                        className={cn(
+                          "p-3 rounded-2xl transition-all border shrink-0 flex items-center justify-center",
+                          showAutoVerifyComposer 
+                            ? "bg-[#110C35] text-accent border-accent/20 shadow-md shadow-accent/10" 
+                            : "hover:bg-secondary text-primary/40 border-transparent"
+                        )}
+                        title="House of Eden Auto-Verify"
+                      >
+                        <ShieldCheck className="w-5 h-5" />
                       </button>
                       <input 
                         type="file"

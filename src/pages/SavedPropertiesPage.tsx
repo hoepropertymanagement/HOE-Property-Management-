@@ -1,17 +1,43 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
-import { mockProperties } from '../constants/mockData';
+import { Property } from '../constants/mockData';
 import PropertyCard from '../components/PropertyCard';
-import { Heart, Landmark, ArrowLeft } from 'lucide-react';
+import { Heart, Landmark, ArrowLeft, Loader2 } from 'lucide-react';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { db } from '../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 export default function SavedPropertiesPage() {
   const { savedIds, toggleSave } = useSavedProperties();
   const isCollapsed = useSidebarCollapse();
-  const savedProperties = mockProperties.filter(p => savedIds.has(p.id));
+  const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSaved() {
+      if (savedIds.size === 0) {
+        setSavedProperties([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const querySnapshot = await getDocs(collection(db, 'properties'));
+        const allProps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+        const filtered = allProps.filter(p => savedIds.has(p.id));
+        setSavedProperties(filtered);
+      } catch (err) {
+        console.error("Error fetching saved properties:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSaved();
+  }, [savedIds]);
 
   return (
     <div className="bg-secondary min-h-screen">
@@ -41,7 +67,12 @@ export default function SavedPropertiesPage() {
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {savedProperties.length > 0 ? (
+            {loading ? (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center">
+                <Loader2 className="w-10 h-10 text-accent animate-spin mb-4" />
+                <p className="text-[10px] text-primary/30 uppercase tracking-widest font-black">Retrieving Saved Homes...</p>
+              </div>
+            ) : savedProperties.length > 0 ? (
               savedProperties.map((p, idx) => (
                 <motion.div
                   key={p.id}

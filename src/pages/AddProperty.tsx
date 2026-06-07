@@ -89,6 +89,26 @@ export default function AddProperty() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // Strict Ownership Validation: Only allow editing if user is the landlord, creator, or agent.
+          const currentUserId = user.uid;
+          const ownerId = data.landlordId;
+          const creatorId = data.created_by;
+          const impersonatedId = localStorage.getItem('impersonated_landlord_id');
+
+          const isOwner = ownerId === currentUserId;
+          const isCreator = creatorId === currentUserId;
+          const isImpersonatingOwner = impersonatedId && ownerId === impersonatedId;
+
+          const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
+          const isAgent = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
+
+          if (ownerId && !isOwner && !isCreator && !isImpersonatingOwner && !isAgent) {
+            showNotification("Unauthorized: This listing belongs to another account.", "red");
+            navigate('/dashboard/landlord/properties');
+            return;
+          }
+
           const loadedData = {
             title: data.title || '',
             type: data.type || 'Apartment',
