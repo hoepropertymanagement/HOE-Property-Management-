@@ -196,7 +196,26 @@ export default function AddProperty() {
   };
 
   const compressAndUploadImage = async (rawFile: File, maxWidth = 1200, quality = 0.8): Promise<string | null> => {
+    const directUpload = async (fileToUpload: File): Promise<string | null> => {
+      try {
+        const cleanName = fileToUpload.name.replace(/[^a-zA-Z0-9.]/g, "_");
+        const uniqueFileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}_${cleanName}`;
+        const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+        await uploadBytes(fRef, fileToUpload);
+        return await getDownloadURL(fRef);
+      } catch (err) {
+        console.error("Direct Upload fallback failed:", err);
+        return null;
+      }
+    };
+
     return new Promise((resolve) => {
+      // If it is a PDF or other non-image format, bypass canvas drawing completely
+      if (rawFile.type === 'application/pdf' || !rawFile.type.startsWith('image/')) {
+        directUpload(rawFile).then(resolve);
+        return;
+      }
+
       const reader = new FileReader();
       reader.readAsDataURL(rawFile);
       
@@ -221,7 +240,7 @@ export default function AddProperty() {
             ctx.drawImage(img, 0, 0, width, height);
             canvas.toBlob(async (blob) => {
               if (!blob) {
-                resolve(null);
+                directUpload(rawFile).then(resolve);
                 return;
               }
               const compressedFile = new File([blob], rawFile.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
@@ -236,17 +255,21 @@ export default function AddProperty() {
                 const downloadUrl = await getDownloadURL(fRef);
                 resolve(downloadUrl);
               } catch (firebaseErr) {
-                console.error("Firebase Storage Upload failed:", firebaseErr);
-                resolve(null);
+                console.error("Firebase Storage Upload failed, falling back to direct:", firebaseErr);
+                directUpload(rawFile).then(resolve);
               }
             }, 'image/jpeg', quality);
           } else {
-            resolve(null);
+            directUpload(rawFile).then(resolve);
           }
         };
-        img.onerror = () => resolve(null);
+        img.onerror = () => {
+          directUpload(rawFile).then(resolve);
+        };
       };
-      reader.onerror = () => resolve(null);
+      reader.onerror = () => {
+        directUpload(rawFile).then(resolve);
+      };
     });
   };
 
@@ -774,22 +797,77 @@ export default function AddProperty() {
 
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 mb-4 block px-2">EPC Certificate Attachment *</label>
-                <div 
-                  onClick={() => document.getElementById('epc-upload')?.click()}
-                  className={cn(
-                    "p-12 bg-secondary rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
-                    formData.epcCertificate && "border-green-500/30 bg-green-50/10"
-                  )}
-                >
-                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    {formData.epcCertificate ? <CheckCircle2 className="w-8 h-8 text-green-500" /> : <ShieldCheck className="w-8 h-8 text-accent" />}
+                
+                {formData.epcCertificate ? (
+                  <div className="space-y-4">
+                    <div className="relative rounded-[2.5rem] overflow-hidden border border-primary/5 shadow-2xl bg-[#0a2f1d]/5 aspect-[4/3] max-w-md mx-auto group">
+                      {formData.epcCertificate.toLowerCase().includes('.pdf') ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[#0d1e15] text-accent">
+                          <CheckCircle2 className="w-12 h-12 text-accent mb-4 animate-pulse" />
+                          <p className="font-serif italic text-lg text-white mb-2">EPC PDF Document Attached</p>
+                          <a 
+                            href={formData.epcCertificate} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="px-6 py-2 bg-accent/15 hover:bg-accent/30 text-accent transition-all text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-accent/20"
+                          >
+                            View PDF In New Tab
+                          </a>
+                        </div>
+                      ) : (
+                        <img 
+                          src={formData.epcCertificate} 
+                          alt="EPC Certificate Preview" 
+                          className="w-full h-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                      
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('epc-upload')?.click()}
+                          className="px-6 py-3 bg-accent text-primary text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg hover:bg-white hover:text-primary transition-all active:scale-95"
+                        >
+                          Change Document / Photo
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('epc-upload')?.click()}
+                        className="px-6 py-3 bg-secondary hover:bg-primary/5 text-primary rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                      >
+                        Replace Document
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateFormData({ epcCertificate: null })}
+                        className="px-6 py-3 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">{formData.epcCertificate ? '✔ Verified' : 'Attach EPC Certificate'}</p>
-                    <p className="text-[9px] text-primary/30 mt-1 font-bold uppercase">Official EPC Image or PDF</p>
+                ) : (
+                  <div 
+                    onClick={() => document.getElementById('epc-upload')?.click()}
+                    className={cn(
+                      "p-12 bg-secondary rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center"
+                    )}
+                  >
+                    <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ShieldCheck className="w-8 h-8 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Attach EPC Certificate / Photo</p>
+                      <p className="text-[9px] text-primary/30 mt-1 font-bold uppercase">Official EPC Image or PDF</p>
+                    </div>
                   </div>
-                  <input id="epc-upload" type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleImageChange(e, 'epcCertificate')} />
-                </div>
+                )}
+                <input id="epc-upload" type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleImageChange(e, 'epcCertificate')} />
               </div>
 
               {renderAdviceNote(
