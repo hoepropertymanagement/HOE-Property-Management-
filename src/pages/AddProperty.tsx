@@ -9,7 +9,7 @@ import {
   Building, MapPin, Upload, ImageIcon, 
   ArrowLeft, CheckCircle2, Home, PoundSterling,
   Info, Camera, Sliders, ShieldCheck, Smartphone,
-  ArrowRight, Loader2, Plus
+  ArrowRight, Loader2, Plus, Star
 } from 'lucide-react';
 import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
@@ -261,7 +261,7 @@ export default function AddProperty() {
       const newImages = [...formData.images];
 
       for (const file of filesArray) {
-        if (newImages.length >= 20) break;
+        if (newImages.length >= 25) break;
         showNotification(`Compressing and uploading ${file.name}...`, "gold");
         const cleanUrl = await compressAndUploadImage(file);
         if (cleanUrl) {
@@ -910,7 +910,7 @@ export default function AddProperty() {
                       </div>
                       <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.3em] text-primary">Import Gallery</p>
-                        <p className="text-[10px] text-primary/30 mt-2 font-bold uppercase tracking-widest">JPG, PNG or WEBP (Max 20)</p>
+                        <p className="text-[10px] text-primary/30 mt-2 font-bold uppercase tracking-widest">JPG, PNG or WEBP (Max 25)</p>
                       </div>
                       <input id="gallery-upload" type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleImageChange(e)} />
                     </div>
@@ -932,7 +932,7 @@ export default function AddProperty() {
 
                   {formData.images.length > 0 && (
                     <div className="space-y-10">
-                      <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black shadow-2xl group">
+                      <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black shadow-2xl group select-none">
                         <AnimatePresence mode="wait">
                           <motion.img 
                             key={`carousel-image-${activeImageIndex}-${formData.images[activeImageIndex]?.slice(-40) || 'placeholder'}`}
@@ -940,37 +940,89 @@ export default function AddProperty() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-grab active:cursor-grabbing"
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.6}
+                            onDragEnd={(event, info) => {
+                              const threshold = 50;
+                              if (info.offset.x < -threshold) {
+                                // Swipe left -> Next image
+                                if (activeImageIndex < formData.images.length - 1) {
+                                  setActiveImageIndex(activeImageIndex + 1);
+                                }
+                              } else if (info.offset.x > threshold) {
+                                // Swipe right -> Previous image
+                                if (activeImageIndex > 0) {
+                                  setActiveImageIndex(activeImageIndex - 1);
+                                }
+                              }
+                            }}
                           />
                         </AnimatePresence>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                         
-                        <div className="absolute top-8 left-8 flex gap-3">
+                        <div className="absolute top-8 left-8 flex gap-3 z-30">
                            <div className="px-4 py-2 bg-accent text-primary text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg">
                              Preview Phase
                            </div>
-                           <div className="px-4 py-2 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10">
+                           <div className="px-4 py-2 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 col-span-2">
                              Image {activeImageIndex + 1} of {formData.images.length}
                            </div>
                         </div>
 
-                        <div className="absolute bottom-8 left-8 flex gap-3">
+                        <div className="absolute top-8 right-8 flex gap-3 z-30">
+                          {activeImageIndex === 0 ? (
+                            <div className="px-4 py-2.5 bg-green-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg flex items-center gap-1.5 border border-white/10 select-none">
+                              <CheckCircle2 className="w-4 h-4" /> Main Image
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newImages = [...formData.images];
+                                // Move selected image to index 0 (main feature)
+                                const [selectedImg] = newImages.splice(activeImageIndex, 1);
+                                newImages.unshift(selectedImg);
+                                updateFormData({ images: newImages });
+                                setActiveImageIndex(0);
+                                showNotification?.("Set as main property image!", "gold");
+                              }}
+                              className="px-4 py-2.5 bg-accent text-primary hover:bg-white hover:text-primary transition-all font-black uppercase tracking-widest text-[10px] rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 border border-accent"
+                            >
+                              <Star className="w-4 h-4 fill-primary" /> Choose as Main Image
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="absolute bottom-8 left-8 flex gap-3 z-30">
                           <button 
-                            onClick={() => reorderImage(activeImageIndex, 'left')}
+                            type="button"
+                            onClick={() => {
+                              if (activeImageIndex > 0) setActiveImageIndex(activeImageIndex - 1);
+                            }}
                             disabled={activeImageIndex === 0}
                             className="p-4 bg-white/10 backdrop-blur-md text-white rounded-2xl hover:bg-white/20 transition-all disabled:opacity-0"
                           >
                             <ArrowLeft className="w-5 h-5" />
                           </button>
                           <button 
-                            onClick={() => reorderImage(activeImageIndex, 'right')}
+                            type="button"
+                            onClick={() => {
+                              if (activeImageIndex < formData.images.length - 1) setActiveImageIndex(activeImageIndex + 1);
+                            }}
                             disabled={activeImageIndex === formData.images.length - 1}
                             className="p-4 bg-white/10 backdrop-blur-md text-white rounded-2xl hover:bg-white/20 transition-all disabled:opacity-0"
                           >
                             <ArrowRight className="w-5 h-5" />
                           </button>
                           <button 
-                            onClick={() => deleteImage(activeImageIndex)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteImage(activeImageIndex);
+                            }}
                             className="p-4 bg-red-500/80 backdrop-blur-md text-white rounded-2xl hover:bg-red-600 transition-all"
                           >
                             <Plus className="w-5 h-5 rotate-45" />
@@ -994,7 +1046,7 @@ export default function AddProperty() {
                             </button>
                           );
                         })}
-                        {formData.images.length < 20 && (
+                        {formData.images.length < 25 && (
                           <button 
                             onClick={() => document.getElementById('gallery-upload')?.click()}
                             className="aspect-square rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center text-primary/20 hover:border-accent hover:text-accent transition-all bg-secondary/30"
