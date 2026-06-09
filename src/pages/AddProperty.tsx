@@ -9,7 +9,7 @@ import {
   Building, MapPin, Upload, ImageIcon, 
   ArrowLeft, CheckCircle2, Home, PoundSterling,
   Info, Camera, Sliders, ShieldCheck, Smartphone,
-  ArrowRight, Loader2, Plus, Star
+  ArrowRight, Loader2, Plus, Star, FileText
 } from 'lucide-react';
 import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
@@ -72,7 +72,6 @@ export default function AddProperty() {
   const getFirstMissedStep = (data: typeof formData) => {
     if (!data.title || !data.location) return 1;
     if (!data.description || data.description.length < 50) return 2;
-    if (!data.epcCertificate) return 3;
     if (!data.monthlyRent) return 4;
     if (!data.noImage && (!data.images || data.images.length === 0)) return 5;
     return 1;
@@ -302,9 +301,6 @@ export default function AddProperty() {
       if (cleanUrl) {
         updateFormData({ [field]: cleanUrl });
         showNotification("File uploaded successfully!", "gold");
-        if (field === 'epcCertificate') {
-          setStep(4);
-        }
       } else {
         showNotification(`Failed to upload ${file.name}`, "gold");
       }
@@ -750,60 +746,51 @@ export default function AddProperty() {
       case 3:
         return (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="space-y-8"
           >
             <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
-              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">EPC Compliance & Documentation</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-6">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 text-center block">EE Rating (Energy Efficiency)</label>
-                  <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
-                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(r => (
-                      <button 
-                        key={r}
-                        onClick={() => updateFormData({ epcEE: r })}
-                        className={cn(
-                          "h-10 rounded-xl flex items-center justify-center font-black transition-all text-xs",
-                          formData.epcEE === r ? "bg-green-600 text-white scale-110 shadow-lg" : "bg-secondary text-primary/30"
-                        )}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-primary/5 pb-6">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary border-l-4 border-accent pl-4">Energy Performance (EPC)</h3>
+                  <p className="text-[11px] text-primary/40 font-medium uppercase tracking-wider mt-2 pl-5">Upload certificate document or photo (Optional)</p>
                 </div>
-
-                <div className="space-y-6">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 text-center block">EI Rating (Environmental Impact)</label>
-                  <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
-                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(r => (
-                      <button 
-                        key={r}
-                        onClick={() => updateFormData({ epcEI: r })}
-                        className={cn(
-                          "h-10 rounded-xl flex items-center justify-center font-black transition-all text-xs",
-                          formData.epcEI === r ? "bg-blue-600 text-white scale-110 shadow-lg" : "bg-secondary text-primary/30"
-                        )}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {!formData.epcCertificate && (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-accent bg-accent/10 px-3 py-1.5 rounded-full self-start sm:self-auto">
+                    Optional Step
+                  </span>
+                )}
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-primary/40 mb-4 block px-2">EPC Certificate Attachment *</label>
-                
                 {formData.epcCertificate ? (
-                  <div className="space-y-4">
-                    <div className="relative rounded-[2.5rem] overflow-hidden border border-primary/5 shadow-2xl bg-[#0a2f1d]/5 aspect-[4/3] max-w-md mx-auto group">
+                  <div className="space-y-6">
+                    <div className="relative rounded-[2.5rem] overflow-hidden border border-accent/20 bg-primary/95 shadow-2xl max-w-md mx-auto aspect-[4/3] group flex items-center justify-center p-4">
+                      {/* Interactive Visual Success State & Animated Checkmark */}
+                      <div className="absolute top-4 right-4 z-30 bg-[#0d1e15] border border-[#4CAF50]/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
+                        <motion.svg
+                          className="w-4 h-4 text-[#4CAF50] drop-shadow-[0_0_4px_rgba(76,175,80,0.6)]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <motion.path
+                            d="M20 6L9 17l-5-5"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                          />
+                        </motion.svg>
+                        <span className="text-[9px] text-[#4CAF50] font-black uppercase tracking-widest">Document Added</span>
+                      </div>
+
                       {formData.epcCertificate.toLowerCase().includes('.pdf') ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[#0d1e15] text-accent">
-                          <CheckCircle2 className="w-12 h-12 text-accent mb-4 animate-pulse" />
+                        <div className="flex flex-col items-center justify-center text-center p-8 text-accent">
+                          <CheckCircle2 className="w-16 h-16 text-accent mb-4 animate-bounce" />
                           <p className="font-serif italic text-lg text-white mb-2">EPC PDF Document Attached</p>
                           <a 
                             href={formData.epcCertificate} 
@@ -815,15 +802,17 @@ export default function AddProperty() {
                           </a>
                         </div>
                       ) : (
-                        <img 
-                          src={formData.epcCertificate} 
-                          alt="EPC Certificate Preview" 
-                          className="w-full h-full object-contain"
-                          referrerPolicy="no-referrer"
-                        />
+                        <div className="w-full h-full relative flex items-center justify-center">
+                          <img 
+                            src={formData.epcCertificate} 
+                            alt="EPC Certificate Preview" 
+                            className="w-full h-full object-contain rounded-2xl"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
                       )}
                       
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                      <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm z-20">
                         <button
                           type="button"
                           onClick={() => document.getElementById('epc-upload')?.click()}
@@ -847,7 +836,7 @@ export default function AddProperty() {
                         onClick={() => updateFormData({ epcCertificate: null })}
                         className="px-6 py-3 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
                       >
-                        Remove Image
+                        Remove Certificate
                       </button>
                     </div>
                   </div>
@@ -855,15 +844,20 @@ export default function AddProperty() {
                   <div 
                     onClick={() => document.getElementById('epc-upload')?.click()}
                     className={cn(
-                      "p-12 bg-secondary rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center"
+                      "p-16 bg-secondary/50 rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
+                      uploading && "opacity-50 pointer-events-none"
                     )}
                   >
-                    <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <ShieldCheck className="w-8 h-8 text-accent" />
+                    <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                      <FileText className="w-10 h-10 text-accent animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Attach EPC Certificate / Photo</p>
-                      <p className="text-[9px] text-primary/30 mt-1 font-bold uppercase">Official EPC Image or PDF</p>
+                      <p className="text-[11px] font-black uppercase tracking-widest text-primary">
+                        {uploading ? "Uploading EPC Document..." : "Attach EPC Certificate / Photo"}
+                      </p>
+                      <p className="text-[9px] text-primary/30 mt-1.5 font-bold uppercase tracking-wider">
+                        Supports high-quality images and vector PDFs
+                      </p>
                     </div>
                   </div>
                 )}
@@ -871,8 +865,8 @@ export default function AddProperty() {
               </div>
 
               {renderAdviceNote(
-                "Assessor Search",
-                "If you do not have a valid EPC, you must contact a Domestic Energy Assessor (DEA) via the Official Government Register (gov.uk/find-energy-certificate). Properties below EPC E cannot be legally let without a registered exemption."
+                "Compliance Note",
+                "Providing a visible EPC photo is a great way to verify your building's energy efficiency for prospective tenants. Under our simplified listing policy, specifying numerical EE or EI parameters is optional and can be managed post-publication."
               )}
             </div>
           </motion.div>
@@ -1148,7 +1142,7 @@ export default function AddProperty() {
   const isNextDisabled = () => {
     if (step === 1 && (!formData.title.trim() || !formData.location.trim())) return true;
     if (step === 2 && formData.description.length < 50) return true;
-    if (step === 3 && (uploading || !formData.epcCertificate)) return true;
+    if (step === 3 && uploading) return true;
     if (step === 4 && !formData.monthlyRent) return true;
     if (step === 5 && !formData.noImage && formData.images.length === 0) return true;
     if (step === 5 && !user?.emailVerified) return true;

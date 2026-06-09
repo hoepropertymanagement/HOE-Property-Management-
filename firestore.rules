@@ -144,9 +144,11 @@ service cloud.firestore {
       allow get: if true;
       allow list: if resource.data.status == 'Live' || 
                    resource.data.status == 'Let Agreed' ||
-                   (request.auth == null || 
-                    ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
-                    ('created_by' in resource.data && resource.data.created_by == request.auth.uid));
+                   (request.auth == null) ||
+                   (request.auth != null && (
+                     ('landlordId' in resource.data && resource.data.landlordId == request.auth.uid) ||
+                     ('created_by' in resource.data && resource.data.created_by == request.auth.uid)
+                   ));
       allow create: if isValidProperty(incoming()) && 
                     incoming().createdAt == request.time &&
                     incoming().updatedAt == request.time;

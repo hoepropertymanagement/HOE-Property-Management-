@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { LogOut, X, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { createPortal } from 'react-dom';
 
 interface LogoutModalProps {
   isOpen: boolean;
@@ -9,7 +10,9 @@ interface LogoutModalProps {
 }
 
 export default function LogoutModal({ isOpen, onClose, onConfirm }: LogoutModalProps) {
-  return (
+  if (typeof window === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4">
@@ -74,6 +77,7 @@ export default function LogoutModal({ isOpen, onClose, onConfirm }: LogoutModalP
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

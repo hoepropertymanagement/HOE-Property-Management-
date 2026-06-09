@@ -30,6 +30,7 @@ export interface Property {
   securityDeposit?: string;
   holdingDeposit?: string;
   contactNumber?: string;
+  landlordName?: string;
 }
 
 export const UK_CITIES = [

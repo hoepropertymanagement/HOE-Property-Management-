@@ -5,11 +5,11 @@ import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import { 
   Users, Home, MessageSquare, TrendingUp, Plus, 
-  ChevronRight, BarChart3, ArrowUpRight, ArrowLeft, 
+  ChevronRight, ChevronDown, BarChart3, ArrowUpRight, ArrowLeft, 
   LayoutDashboard, ShieldCheck, Search, Filter, 
   Loader2, CheckCircle2, AlertCircle, Clock, Building,
   X, Mail, Phone, Calendar, ArrowRight, ClipboardCheck,
-  Eye, Compass, Edit3, Trash2
+  Eye, Compass, Edit3, Edit, Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -66,6 +66,20 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
   const [showSelectLandlordToPublishModal, setShowSelectLandlordToPublishModal] = useState(false);
   const [selectedLlToPublish, setSelectedLlToPublish] = useState('');
   const [selectedPreviewProperty, setSelectedPreviewProperty] = useState<any | null>(null);
+  const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
+
+  // Resume or edit an existing property on behalf of a specific landlord client
+  const handleEditProperty = (p: Property) => {
+    if (!p.id) return;
+    if (p.landlordId) {
+      localStorage.setItem('impersonated_landlord_id', p.landlordId);
+    }
+    if (p.landlordName) {
+      localStorage.setItem('impersonated_landlord_name', p.landlordName);
+    }
+    showNotification(`Resuming/Editing listing for ${p.landlordName || 'Landlord'}...`, "gold");
+    navigate(`/dashboard/landlord/add?id=${p.id}`);
+  };
 
   // "Add Landlord" form inputs
   const [llName, setLlName] = useState('');
@@ -131,52 +145,55 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
         const snapshot = await getDocs(q);
         const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as Property));
         
-        // Fallback mock properties filtered to appear as managed by this agent to give perfect instant richness
-        if (list.length === 0) {
-          const initialProps = [
-            {
-              id: "agent-p1",
-              title: "Luxurious Townhouse with Garden Vue",
-              location: "Hatfield, Hertfordshire",
-              price: "£2,450",
-              beds: 4,
-              baths: 3,
-              status: "Live",
-              description: "An absolutely stunning modern residence located within the highly desirable heart of Hatfield. Features exceptional energy systems, master suite, spacious en-suite, and fully finished open kitchen flowing to the manicured garden.",
-              image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200",
-              images: ["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200"],
-              landlordId: "sir-richard-cole",
-              landlordName: "Sir Richard Cole",
-              created_by: user.uid,
-              views: 142,
-              councilTax: "Band E",
-              energyEfficiency: "B",
-              environmentalImpact: "B"
-            },
-            {
-              id: "agent-p2",
-              title: "St Mary's Court Mews Apartment",
-              location: "Wandsworth, London",
-              price: "£1,850",
-              beds: 2,
-              baths: 1,
-              status: "Draft",
-              description: "A beautifully presented first floor mews apartment situated in this secure, premium gated development in Balham borders. Fully furnished and ideal for modern professional sharers.",
-              image: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200",
-              images: ["https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200"],
-              landlordId: "eleanor-vance",
-              landlordName: "Eleanor Vance",
-              created_by: user.uid,
-              views: 0,
-              councilTax: "Band C",
-              energyEfficiency: "D",
-              environmentalImpact: "C"
-            }
-          ];
-          setProperties(initialProps as unknown as Property[]);
-        } else {
-          setProperties(list);
-        }
+        const initialProps = [
+          {
+            id: "agent-p1",
+            title: "Luxurious Townhouse with Garden Vue",
+            location: "Hatfield, Hertfordshire",
+            price: "£2,450",
+            beds: 4,
+            baths: 3,
+            status: "Live",
+            description: "An absolutely stunning modern residence located within the highly desirable heart of Hatfield. Features exceptional energy systems, master suite, spacious en-suite, and fully finished open kitchen flowing to the manicured garden.",
+            image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200",
+            images: ["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200"],
+            landlordId: "sir-richard-cole",
+            landlordName: "Sir Richard Cole",
+            created_by: user.uid,
+            views: 142,
+            councilTax: "Band E",
+            energyEfficiency: "B",
+            environmentalImpact: "B"
+          },
+          {
+            id: "agent-p2",
+            title: "St Mary's Court Mews Apartment",
+            location: "Wandsworth, London",
+            price: "£1,850",
+            beds: 2,
+            baths: 1,
+            status: "Draft",
+            description: "A beautifully presented first floor mews apartment situated in this secure, premium gated development in Balham borders. Fully furnished and ideal for modern professional sharers.",
+            image: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200",
+            images: ["https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200"],
+            landlordId: "eleanor-vance",
+            landlordName: "Eleanor Vance",
+            created_by: user.uid,
+            views: 0,
+            councilTax: "Band C",
+            energyEfficiency: "D",
+            environmentalImpact: "C"
+          }
+        ];
+
+        // Merge database-fetched properties with initial mock properties so they both appear under their respective landlords
+        const merged = [...list];
+        initialProps.forEach(ip => {
+          if (!merged.some(p => p.id === ip.id)) {
+            merged.push(ip as unknown as Property);
+          }
+        });
+        setProperties(merged);
       } catch (err) {
         console.error("Error fetching agent properties:", err);
       } finally {
@@ -600,52 +617,150 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
                           </td>
                         </tr>
                       ) : landlords.length > 0 ? landlords.map((ll) => {
-                        const count = properties.filter(p => p.landlordId === ll.id || p.landlordName === ll.name).length;
+                        const landlordProps = properties.filter(p => p.landlordId === ll.id || p.landlordName === ll.name);
+                        const count = landlordProps.length;
+                        const isExpanded = expandedLandlordId === ll.id;
                         return (
-                          <tr key={ll.id} className="group hover:bg-slate-50/70 transition-colors border-b border-slate-100 last:border-0 font-sans">
-                            <td className="px-8 py-6">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 bg-teal-50 border border-teal-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-bold text-teal-700 font-serif">{ll.name?.[0] || 'L'}</span>
+                          <React.Fragment key={ll.id}>
+                            <tr className="group hover:bg-slate-50/70 transition-colors border-b border-slate-100 last:border-0 font-sans">
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-teal-50 border border-teal-100 rounded-full flex items-center justify-center">
+                                    <span className="text-xs font-bold text-teal-700 font-serif">{ll.name?.[0] || 'L'}</span>
+                                  </div>
+                                  <span className="font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors block text-base leading-none">
+                                    {ll.name}
+                                  </span>
                                 </div>
-                                <span className="font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors block text-base leading-none">
-                                  {ll.name}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-8 py-6 text-slate-700 font-mono text-xs font-semibold">{ll.email}</td>
-                            <td className="px-8 py-6 text-slate-700 font-mono text-xs font-semibold">{ll.phone}</td>
-                            <td className="px-10 py-6">
-                              <span className="px-3 py-1 bg-teal-50 border border-teal-100 text-teal-800 font-black font-mono text-xs rounded-full">
-                                {count} {count === 1 ? 'property' : 'properties'}
-                              </span>
-                            </td>
-                            <td className="px-8 py-6 text-right">
-                              <div className="flex justify-end gap-2.5">
-                                <button 
-                                  onClick={() => handleImpersonateLandlord(ll)}
-                                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-extrabold uppercase tracking-widest text-[8px] sm:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-md"
-                                >
-                                  <Building className="w-3 h-3" /> Enter Dashboard
-                                </button>
-                                <button 
-                                  onClick={() => handleAddPropertyForLandlord(ll)}
-                                  className="px-4 py-2 bg-slate-800 hover:bg-black text-white font-extrabold uppercase tracking-widest text-[8px] sm:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-md"
-                                >
-                                  <Plus className="w-3 h-3" /> Add Property
-                                </button>
-                                {ll.id !== 'eleanor-vance' && ll.id !== 'sir-richard-cole' && ll.id !== 'alastair-sterling' && (
-                                  <button
-                                    onClick={() => deleteLandlord(ll.id || '', ll.name)}
-                                    className="p-1.5 bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white rounded-xl transition-all cursor-pointer"
-                                    title="Deactivate Client"
+                              </td>
+                              <td className="px-8 py-6 text-slate-700 font-mono text-xs font-semibold">{ll.email}</td>
+                              <td className="px-8 py-6 text-slate-700 font-mono text-xs font-semibold">{ll.phone}</td>
+                              <td className="px-10 py-6">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-3 py-1 bg-teal-50 border border-teal-100 text-teal-800 font-black font-mono text-xs rounded-full">
+                                    {count} {count === 1 ? 'property' : 'properties'}
+                                  </span>
+                                  {count > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedLandlordId(isExpanded ? null : (ll.id || 'NOLINK'));
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-teal-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                      title="View listings"
+                                    >
+                                      <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isExpanded && "rotate-180")} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 text-right">
+                                <div className="flex justify-end gap-2.5">
+                                  <button 
+                                    onClick={() => handleImpersonateLandlord(ll)}
+                                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-extrabold uppercase tracking-widest text-[8px] sm:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-md"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Building className="w-3 h-3" /> Enter Dashboard
                                   </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
+                                  <button 
+                                    onClick={() => handleAddPropertyForLandlord(ll)}
+                                    className="px-4 py-2 bg-slate-800 hover:bg-black text-white font-extrabold uppercase tracking-widest text-[8px] sm:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-md"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add Property
+                                  </button>
+                                  {ll.id !== 'eleanor-vance' && ll.id !== 'sir-richard-cole' && ll.id !== 'alastair-sterling' && (
+                                    <button
+                                      onClick={() => deleteLandlord(ll.id || '', ll.name)}
+                                      className="p-1.5 bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white rounded-xl transition-all cursor-pointer"
+                                      title="Deactivate Client"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={5} className="bg-slate-50/60 p-0 border-b border-slate-100">
+                                  <div className="px-12 py-6 border-l border-r border-[#eceff1] mx-4 my-2 rounded-2xl bg-white/70 shadow-inner space-y-4">
+                                    <div className="flex justify-between items-center bg-slate-100/40 p-3 rounded-xl border border-slate-200/50">
+                                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                                        <Building className="w-3.5 h-3.5 text-slate-400" /> Listings & Drafts under {ll.name}
+                                      </h4>
+                                      <span className="text-[9px] font-bold text-slate-400 font-mono uppercase">
+                                        {count} entries
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {landlordProps.map((p) => (
+                                        <div 
+                                          key={p.id} 
+                                          className="bg-white border border-slate-200/60 hover:border-teal-500/30 p-4 rounded-xl flex items-center justify-between gap-4 transition-all shadow-sm"
+                                        >
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            {p.image ? (
+                                              <img 
+                                                src={p.image} 
+                                                alt={p.title} 
+                                                className="w-12 h-12 rounded-lg object-cover border border-slate-100 flex-shrink-0"
+                                                referrerPolicy="no-referrer"
+                                              />
+                                            ) : (
+                                              <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                                <Home className="w-5 h-5 text-slate-400" />
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
+                                              <h5 
+                                                className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight hover:text-teal-700 transition-colors cursor-pointer truncate" 
+                                                onClick={() => setSelectedPreviewProperty(p)}
+                                              >
+                                                {p.title}
+                                              </h5>
+                                              <p className="text-slate-500 font-mono text-[9px] truncate">{p.location}</p>
+                                              <div className="flex gap-2 mt-1 items-center flex-wrap">
+                                                <span className="text-slate-900 font-serif italic text-xs font-extrabold">{p.price}</span>
+                                                <span className={cn(
+                                                  "text-[7px] px-1.5 py-0.5 rounded-full uppercase tracking-widest font-black inline-block leading-none border",
+                                                  p.status === 'Live' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"
+                                                )}>
+                                                  {p.status || 'Live'}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedPreviewProperty(p);
+                                              }}
+                                              className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                                              title="Quick Preview"
+                                            >
+                                              <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEditProperty(p);
+                                              }}
+                                              className="p-1.5 hover:bg-teal-50 text-teal-600 rounded-lg transition-colors cursor-pointer"
+                                              title="Edit Property"
+                                            >
+                                              <Edit className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       }) : (
                         <tr>
@@ -692,12 +807,13 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
                         <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-900 font-black">Budget PCM</th>
                         <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-900 font-black">Renters Rights Act Compliant</th>
                         <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-900 font-black">Publish status</th>
+                        <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-900 font-black text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loadingProperties ? (
                         <tr>
-                          <td colSpan={5} className="py-20 text-center">
+                          <td colSpan={6} className="py-20 text-center">
                             <Loader2 className="w-10 h-10 text-teal-600 animate-spin mx-auto mb-4" />
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gathering portfolio details...</p>
                           </td>
@@ -729,10 +845,20 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
                               {p.status || 'Live'}
                             </span>
                           </td>
+                          <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2 text-right">
+                              <button
+                                onClick={() => handleEditProperty(p)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-black text-white font-extrabold uppercase tracking-widest text-[8px] sm:text-[9.5px] rounded-full transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95 duration-150"
+                              >
+                                <Edit className="w-3.5 h-3.5" /> Edit
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan={5} className="py-20 text-center text-slate-400 italic">
+                          <td colSpan={6} className="py-20 text-center text-slate-400 italic">
                             No listings currently managed by agent. Click general button to board client listing.
                           </td>
                         </tr>

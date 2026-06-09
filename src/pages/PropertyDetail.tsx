@@ -694,10 +694,12 @@ export default function PropertyDetail() {
                     </div>
                   </div>
                 ) : (
-                   <div className="p-8 bg-white rounded-[2rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center text-center">
-                     <FileText className="w-12 h-12 text-primary/10 mb-4" />
-                     <p className="text-primary/40 text-sm font-medium italic">No digital EPC certificate attached to this listing.</p>
-                     <p className="text-[10px] text-primary/30 uppercase tracking-widest mt-2">EE Rating: {property.epcEE || 'N/A'} | EI Rating: {property.epcEI || 'N/A'}</p>
+                   <div className="p-10 bg-secondary/30 rounded-[2rem] border border-primary/5 flex flex-col items-center justify-center text-center">
+                     <FileText className="w-10 h-10 text-primary/20 mb-3" />
+                     <p className="text-primary/70 text-sm font-bold tracking-tight">EPC Pending / Not Provided</p>
+                     <p className="text-[10px] text-primary/40 uppercase tracking-widest mt-1.5 leading-relaxed max-w-xs font-semibold">
+                       Energy performance verification details for this property are currently pending.
+                     </p>
                    </div>
                 )}
               </div>
