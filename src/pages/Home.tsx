@@ -40,11 +40,30 @@ export default function Home() {
         const q = fireQuery(
           collection(db, 'properties'), 
           where('status', 'in', ['Live', 'Let Agreed']),
-          limit(3)
+          limit(20)
         );
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setFeaturedProperties(props);
+        
+        // Sort client-side by updatedAt/createdAt desc to avoid adding indexes and ensure newly published is on top
+        props.sort((a, b) => {
+          const dateA = a.updatedAt || a.createdAt;
+          const dateB = b.updatedAt || b.createdAt;
+          
+          let msA = 0;
+          let msB = 0;
+          
+          if (dateA) {
+            msA = typeof dateA.toMillis === 'function' ? dateA.toMillis() : new Date(dateA).getTime();
+          }
+          if (dateB) {
+            msB = typeof dateB.toMillis === 'function' ? dateB.toMillis() : new Date(dateB).getTime();
+          }
+          
+          return msB - msA;
+        });
+        
+        setFeaturedProperties(props.slice(0, 3));
       } catch (err: any) {
         if (err.code === 'permission-denied') {
           console.error("Permission Denied: Unable to access featured properties. Please ensure the Firestore security rules allow public reading of live properties.");

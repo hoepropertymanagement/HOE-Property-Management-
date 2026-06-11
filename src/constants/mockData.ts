@@ -31,6 +31,8 @@ export interface Property {
   holdingDeposit?: string;
   contactNumber?: string;
   landlordName?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export const UK_CITIES = [

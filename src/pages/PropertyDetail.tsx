@@ -97,14 +97,16 @@ export default function PropertyDetail() {
   const carouselImages = useMemo(() => {
     if (!property) return [];
     const imagesList: string[] = [];
-    if (property.image) {
+    if (property.image && property.image.trim()) {
       imagesList.push(prepUrl(property.image));
     }
     if (property.images && Array.isArray(property.images)) {
       property.images.forEach((img: string) => {
-        const u = prepUrl(img);
-        if (u && !imagesList.includes(u)) {
-          imagesList.push(u);
+        if (img && img.trim()) {
+          const u = prepUrl(img);
+          if (u && !imagesList.includes(u)) {
+            imagesList.push(u);
+          }
         }
       });
     }
@@ -459,33 +461,7 @@ export default function PropertyDetail() {
                 View {carouselIndex + 1} of {carouselImages.length}
               </div>
 
-              {/* EPC Badges */}
-              <div className="absolute top-6 right-6 flex gap-2 z-10">
-                {property.epcEE && (
-                  <div className={cn(
-                    "w-10 h-10 flex flex-col items-center justify-center text-white font-black rounded-xl text-sm shadow-xl border border-white/20 select-none",
-                    property.epcEE === 'A' ? "bg-green-600/90" : 
-                    property.epcEE === 'B' ? "bg-green-500/90" :
-                    property.epcEE === 'C' ? "bg-lime-500/90" :
-                    property.epcEE === 'D' ? "bg-yellow-500/90" : "bg-orange-500/90"
-                  )}>
-                    <span className="text-[6px] uppercase tracking-tighter opacity-75">EE</span>
-                    {property.epcEE}
-                  </div>
-                )}
-                {property.epcEI && (
-                  <div className={cn(
-                    "w-10 h-10 flex flex-col items-center justify-center text-white font-black rounded-xl text-sm shadow-xl border border-white/20 select-none",
-                    property.epcEI === 'A' ? "bg-green-600/90" : 
-                    property.epcEI === 'B' ? "bg-green-500/90" :
-                    property.epcEI === 'C' ? "bg-lime-500/90" :
-                    property.epcEI === 'D' ? "bg-yellow-500/90" : "bg-orange-500/90"
-                  )}>
-                    <span className="text-[6px] uppercase tracking-tighter opacity-75">EI</span>
-                    {property.epcEI}
-                  </div>
-                )}
-              </div>
+              {/* EPC Badges removed as requested */}
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center relative p-8 bg-white border border-primary/5">
@@ -597,36 +573,6 @@ export default function PropertyDetail() {
               <div className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-2xl font-serif italic">Property Description</h3>
-                  <div className="flex items-center gap-4">
-                    {property.epcEE && (
-                      <div className="flex flex-col items-center">
-                        <span className="text-[8px] font-black uppercase text-primary/30 tracking-tighter">EPC EE</span>
-                        <div className={cn(
-                          "w-8 h-8 flex items-center justify-center text-white font-black rounded-lg text-sm",
-                          property.epcEE === 'A' ? "bg-green-600" : 
-                          property.epcEE === 'B' ? "bg-green-500" :
-                          property.epcEE === 'C' ? "bg-lime-500" :
-                          property.epcEE === 'D' ? "bg-yellow-500" : "bg-orange-500"
-                        )}>
-                          {property.epcEE}
-                        </div>
-                      </div>
-                    )}
-                    {property.epcEI && (
-                      <div className="flex flex-col items-center">
-                        <span className="text-[8px] font-black uppercase text-primary/30 tracking-tighter">EPC EI</span>
-                        <div className={cn(
-                          "w-8 h-8 flex items-center justify-center text-white font-black rounded-lg text-sm",
-                          property.epcEI === 'A' ? "bg-green-600" : 
-                          property.epcEI === 'B' ? "bg-green-500" :
-                          property.epcEI === 'C' ? "bg-lime-500" :
-                          property.epcEI === 'D' ? "bg-yellow-500" : "bg-orange-500"
-                        )}>
-                          {property.epcEI}
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
                 <div className="markdown-body text-primary/80 leading-relaxed space-y-4">
                   <p>{property.description}</p>

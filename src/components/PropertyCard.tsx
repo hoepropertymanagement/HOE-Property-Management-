@@ -22,7 +22,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const isLandlord = profile?.role === 'landlord' || profile?.role === 'both';
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const totalImages = property.images?.length || 0;
+  const totalImages = property.images ? property.images.filter(Boolean).length : 0;
   
   // Cache buster guarantees the browser displays freshly replaced images instantly
   const cacheBuster = React.useMemo(() => Date.now(), []);
@@ -34,7 +34,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   };
 
   // We want to show up to 3 real images, then a 4th "more" slide if there are 4+ images
-  const displayImages = property.images ? property.images.slice(0, 4).map(img => prepUrl(img)) : [];
+  const displayImages = property.images ? property.images.filter(Boolean).slice(0, 4).map(img => prepUrl(img)) : [];
   const hasMoreImages = totalImages > 3;
 
   const nextImage = (e?: React.MouseEvent) => {
@@ -106,33 +106,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                       )}
                     />
                     
-                    {/* EPC Overlays */}
-                    <div className="absolute top-12 left-3 flex flex-col gap-1 z-20">
-                      {property.epcEE && (
-                        <div className={cn(
-                          "w-7 h-7 flex flex-col items-center justify-center text-white font-black rounded-lg text-[10px] shadow-lg border border-white/20",
-                          property.epcEE === 'A' ? "bg-green-600" : 
-                          property.epcEE === 'B' ? "bg-green-500" :
-                          property.epcEE === 'C' ? "bg-lime-500" :
-                          property.epcEE === 'D' ? "bg-yellow-500" : "bg-orange-500"
-                        )}>
-                          <span className="text-[5px] uppercase opacity-70 leading-[1]">EE</span>
-                          {property.epcEE}
-                        </div>
-                      )}
-                      {property.epcEI && (
-                        <div className={cn(
-                          "w-7 h-7 flex flex-col items-center justify-center text-white font-black rounded-lg text-[10px] shadow-lg border border-white/20",
-                          property.epcEI === 'A' ? "bg-green-600" : 
-                          property.epcEI === 'B' ? "bg-green-500" :
-                          property.epcEI === 'C' ? "bg-lime-500" :
-                          property.epcEI === 'D' ? "bg-yellow-500" : "bg-orange-500"
-                        )}>
-                          <span className="text-[5px] uppercase opacity-70 leading-[1]">EI</span>
-                          {property.epcEI}
-                        </div>
-                      )}
-                    </div>
+                    {/* EPC Overlays removed as requested */}
                   </>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-secondary">
@@ -277,15 +251,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                  </div>
                </div>
              )}
-             {property.epcEE && (
-               <div className={cn(
-                 "px-1.5 py-0.5 rounded-sm text-white text-[8px] font-black shadow-sm",
-                 ['A', 'B', 'C'].includes(property.epcEE) ? "bg-green-600" : 
-                 ['D', 'E'].includes(property.epcEE) ? "bg-yellow-500" : "bg-red-500"
-               )}>
-                 EPC {property.epcEE}
-               </div>
-             )}
+
           </div>
           <div className="text-[9px] font-bold uppercase tracking-widest text-accent flex items-center gap-2">
             <ShieldCheck className="w-3 h-3" />
