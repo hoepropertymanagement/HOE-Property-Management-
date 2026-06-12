@@ -280,17 +280,40 @@ export default function AddProperty() {
     
     if (field === 'images') {
       const filesArray: File[] = Array.from(files);
-      const newImages = [...formData.images];
+      const tempPreviews: { file: File; localUrl: string }[] = [];
 
       for (const file of filesArray) {
-        if (newImages.length >= 25) break;
-        showNotification(`Compressing and uploading ${file.name}...`, "gold");
-        const cleanUrl = await compressAndUploadImage(file);
-        if (cleanUrl) {
-          newImages.push(cleanUrl);
-          updateFormData({ images: [...newImages] });
-        } else {
-          showNotification(`Failed to upload ${file.name}`, "gold");
+        if (formData.images.length + tempPreviews.length >= 25) {
+          showNotification("Maximum 25 images limit reached.", "gold");
+          break;
+        }
+        
+        // Generate a fast browser object URL to display the preview instantly
+        const localUrl = URL.createObjectURL(file);
+        tempPreviews.push({ file, localUrl });
+      }
+
+      if (tempPreviews.length > 0) {
+        const initialWithPreviews = [...formData.images, ...tempPreviews.map(p => p.localUrl)];
+        updateFormData({ images: initialWithPreviews });
+        
+        // Move the carousel focus to the starting index of the newly added images
+        const targetFocusIndex = formData.images.length;
+        setActiveImageIndex(targetFocusIndex);
+        showNotification(`${tempPreviews.length} photo(s) selected and previewed instantly! Saving securely to your gallery...`, "gold");
+
+        // Compress and upload each file in the background (asynchronous sync)
+        for (const preview of tempPreviews) {
+          const cleanUrl = await compressAndUploadImage(preview.file);
+          if (cleanUrl) {
+            // Find and swap the temporary object URL with the final permanent Firebase download URL
+            setFormData(prev => {
+              const updatedImages = prev.images.map(img => img === preview.localUrl ? cleanUrl : img);
+              return { ...prev, images: updatedImages };
+            });
+          } else {
+            showNotification(`Failed to backup ${preview.file.name} to cloud. Direct local preview is active.`, "gold");
+          }
         }
       }
       setUploading(false);
@@ -803,7 +826,7 @@ export default function AddProperty() {
                         <span className="text-[9px] text-[#4CAF50] font-black uppercase tracking-widest">Document Added</span>
                       </div>
 
-                      {formData.epcCertificate.toLowerCase().includes('.pdf') ? (
+                      {(formData.epcCertificate.toLowerCase().includes('.pdf') || formData.epcCertificate.startsWith('data:application/pdf') || formData.epcCertificate.includes('#temp.pdf')) ? (
                         <div className="flex flex-col items-center justify-center text-center p-8 text-accent">
                           <CheckCircle2 className="w-16 h-16 text-accent mb-4 animate-bounce" />
                           <p className="font-serif italic text-lg text-white mb-2">EPC PDF Document Attached</p>
@@ -1083,37 +1106,83 @@ export default function AddProperty() {
                           )}
                         </div>
 
-                        <div className="absolute bottom-8 left-8 flex gap-3 z-30">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (activeImageIndex > 0) setActiveImageIndex(activeImageIndex - 1);
-                            }}
-                            disabled={activeImageIndex === 0}
-                            className="p-4 bg-white/10 backdrop-blur-md text-white rounded-2xl hover:bg-white/20 transition-all disabled:opacity-0"
-                          >
-                            <ArrowLeft className="w-5 h-5" />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (activeImageIndex < formData.images.length - 1) setActiveImageIndex(activeImageIndex + 1);
-                            }}
-                            disabled={activeImageIndex === formData.images.length - 1}
-                            className="p-4 bg-white/10 backdrop-blur-md text-white rounded-2xl hover:bg-white/20 transition-all disabled:opacity-0"
-                          >
-                            <ArrowRight className="w-5 h-5" />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteImage(activeImageIndex);
-                            }}
-                            className="p-4 bg-red-500/80 backdrop-blur-md text-white rounded-2xl hover:bg-red-600 transition-all"
-                          >
-                            <Plus className="w-5 h-5 rotate-45" />
-                          </button>
+                        <div className="absolute bottom-8 left-8 right-8 flex flex-col md:flex-row items-center justify-between gap-4 z-30">
+                          {/* Left Side: Preview Navigation */}
+                          <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-lg">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                               if (activeImageIndex > 0) setActiveImageIndex(activeImageIndex - 1);
+                              }}
+                              disabled={activeImageIndex === 0}
+                              className="p-3 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all disabled:opacity-20 disabled:hover:bg-white/10 border border-white/5 cursor-pointer"
+                              title="Preview Previous Photo"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90 select-none">
+                              Preview
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                               if (activeImageIndex < formData.images.length - 1) setActiveImageIndex(activeImageIndex + 1);
+                              }}
+                              disabled={activeImageIndex === formData.images.length - 1}
+                              className="p-3 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all disabled:opacity-20 disabled:hover:bg-white/10 border border-white/5 cursor-pointer"
+                              title="Preview Next Photo"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Right Side: Position Shift & Item Deletion */}
+                          <div className="flex flex-wrap items-center justify-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-3xl border border-white/10 shadow-lg">
+                            <div className="flex items-center gap-2 px-1 text-accent select-none">
+                              <Sliders className="w-3.5 h-3.5 animate-pulse text-[#D192FF]" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#D192FF]">
+                                Position #{activeImageIndex + 1}
+                              </span>
+                            </div>
+
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reorderImage(activeImageIndex, 'left');
+                              }}
+                              disabled={activeImageIndex === 0}
+                              className="px-4 py-2.5 bg-accent/20 hover:bg-accent hover:text-primary backdrop-blur-md text-accent rounded-xl transition-all disabled:opacity-20 border border-accent/20 flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px] cursor-pointer"
+                              title="Shift Position Left"
+                            >
+                              <ArrowLeft className="w-3.5 h-3.5" /> Move Left
+                            </button>
+                            
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reorderImage(activeImageIndex, 'right');
+                              }}
+                              disabled={activeImageIndex === formData.images.length - 1}
+                              className="px-4 py-2.5 bg-accent/20 hover:bg-accent hover:text-primary backdrop-blur-md text-accent rounded-xl transition-all disabled:opacity-20 border border-accent/20 flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px] cursor-pointer"
+                              title="Shift Position Right"
+                            >
+                              Move Right <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteImage(activeImageIndex);
+                              }}
+                              className="p-3 bg-red-500/80 hover:bg-red-600 font-black text-white rounded-xl transition-all border border-red-500/20 active:scale-95 cursor-pointer"
+                              title="Delete Photo"
+                            >
+                              <Plus className="w-4 h-4 rotate-45" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
