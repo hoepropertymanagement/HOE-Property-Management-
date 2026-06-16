@@ -137,6 +137,8 @@ service cloud.firestore {
              (!('location' in data) || (data.location is string && data.location.size() <= 500)) &&
              (!('type' in data) || (data.type is string && data.type.size() <= 100)) &&
              (!('images' in data) || (data.images is list && data.images.size() <= 25)) &&
+             (!('image_urls' in data) || (data.image_urls is list && data.image_urls.size() <= 25)) &&
+             (!('listing_type' in data) || (data.listing_type in ['Let', 'Buy'])) &&
              (!('created_by' in data) || (data.created_by is string && data.created_by.size() <= 128));
     }
 

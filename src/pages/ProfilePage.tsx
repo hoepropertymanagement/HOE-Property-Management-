@@ -65,7 +65,23 @@ export default function ProfilePage() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (error) {
-      console.error("Error uploading photo:", error);
+      console.warn("Error uploading photo, utilizing base64 metadata fallback:", error);
+      // Fallback: save the base64 photoURL directly into Firestore!
+      const fallbackReader = new FileReader();
+      fallbackReader.onloadend = async () => {
+        const b64 = fallbackReader.result as string;
+        if (b64) {
+          try {
+            setFormData(prev => ({ ...prev, photoURL: b64 }));
+            await updateProfile({ photoURL: b64 });
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 2000);
+          } catch (dbErr) {
+            console.error("Failed to save base64 fallback photo profile:", dbErr);
+          }
+        }
+      };
+      fallbackReader.readAsDataURL(file);
     } finally {
       setUploading(false);
     }

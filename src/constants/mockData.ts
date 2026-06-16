@@ -33,6 +33,8 @@ export interface Property {
   landlordName?: string;
   createdAt?: any;
   updatedAt?: any;
+  listing_type?: 'Let' | 'Buy';
+  image_urls?: string[];
 }
 
 export const UK_CITIES = [

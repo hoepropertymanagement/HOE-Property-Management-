@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bed, Bath, Move, MapPin, Share2, Heart, 
   ChevronLeft, ChevronRight, Info, Calendar, Phone, Mail,
@@ -76,6 +76,7 @@ export default function PropertyDetail() {
   const [property, setProperty] = useState<Property | null>(null);
   const [landlord, setLandlord] = useState<any | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const { isSaved, toggleSave } = useSavedProperties();
   const { user } = useAuth();
@@ -83,12 +84,14 @@ export default function PropertyDetail() {
   const navigate = useNavigate();
   const [isMessaging, setIsMessaging] = useState(false);
   const [showViewingModal, setShowViewingModal] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Cache buster guarantees the browser displays freshly replaced images instantly
   const cacheBuster = useMemo(() => Date.now(), []);
   const prepUrl = (url?: string) => {
     if (!url) return '';
-    if (url.startsWith('data:')) return url;
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}v=${cacheBuster}`;
   };
@@ -96,12 +99,22 @@ export default function PropertyDetail() {
   // Compile images list for the Carousel viewer
   const carouselImages = useMemo(() => {
     if (!property) return [];
+    
+    // If Let Agreed, we restrict to only the very first/main image
+    const isLetAgreed = property.status === 'Let Agreed';
+    
     const imagesList: string[] = [];
     if (property.image && property.image.trim()) {
       imagesList.push(prepUrl(property.image));
     }
-    if (property.images && Array.isArray(property.images)) {
-      property.images.forEach((img: string) => {
+    
+    // If not Let Agreed, load the remaining gallery images
+    const rawImagesList = (property.image_urls && property.image_urls.length > 0)
+      ? property.image_urls
+      : property.images;
+
+    if (!isLetAgreed && rawImagesList && Array.isArray(rawImagesList)) {
+      rawImagesList.forEach((img: string) => {
         if (img && img.trim()) {
           const u = prepUrl(img);
           if (u && !imagesList.includes(u)) {
@@ -110,6 +123,14 @@ export default function PropertyDetail() {
         }
       });
     }
+
+    if (imagesList.length === 0 && rawImagesList && rawImagesList.length > 0) {
+      const firstImg = rawImagesList.filter(Boolean)[0];
+      if (firstImg) {
+        imagesList.push(prepUrl(firstImg));
+      }
+    }
+
     return imagesList;
   }, [property, prepUrl]);
 
@@ -139,6 +160,7 @@ export default function PropertyDetail() {
 
         if (propData) {
           setProperty(propData);
+          setFailedImages({});
 
           // Fetch landowner profile
           if (propData.landlordId) {
@@ -410,11 +432,29 @@ export default function PropertyDetail() {
           {carouselImages.length > 0 ? (
             <div className="w-full h-full relative">
               {/* Active Image */}
-              <img 
-                src={carouselImages[carouselIndex]} 
-                alt={`${property.title} - View ${carouselIndex + 1}`} 
-                className="w-full h-full object-cover transition-all duration-700 select-none animate-fade-in"
-              />
+              {!failedImages[carouselIndex] ? (
+                <div 
+                  className="w-full h-full cursor-zoom-in relative group/image"
+                  onClick={() => { setLightboxIndex(carouselIndex); setIsLightboxOpen(true); }}
+                >
+                  <img 
+                    src={carouselImages[carouselIndex]} 
+                    alt={`${property.title} - View ${carouselIndex + 1}`} 
+                    onError={() => setFailedImages(prev => ({ ...prev, [carouselIndex]: true }))}
+                    className="w-full h-full object-cover transition-all duration-700 select-none animate-fade-in group-hover/image:scale-[1.02]"
+                  />
+                  {/* Floating magnify indicator */}
+                  <div className="absolute top-4 right-4 bg-black/45 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-white/15 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 pointer-events-none flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5 text-accent" />
+                    Click to Expand
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-secondary gap-3">
+                  <Home className="w-16 h-16 text-primary/15 animate-pulse" />
+                  <span className="text-xs font-bold text-primary/30 uppercase tracking-[0.15em]">Image Not Available</span>
+                </div>
+              )}
 
               {/* Gradient overlay for text reading */}
               <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
@@ -457,9 +497,17 @@ export default function PropertyDetail() {
               )}
 
               {/* Number/Count Indicator */}
-              <div className="absolute top-6 left-6 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-4 py-2 rounded-xl uppercase tracking-widest border border-white/10 select-none">
-                View {carouselIndex + 1} of {carouselImages.length}
-              </div>
+              {property.status === 'Let Agreed' ? (
+                <div className="absolute top-6 left-6 bg-[#0a2f1d]/95 backdrop-blur-md border-2 border-[#D4AF37] text-[#D4AF37] text-sm font-black px-5 py-3 rounded-2xl uppercase tracking-[0.2em] shadow-2xl z-30">
+                  Let Agreed
+                </div>
+              ) : (
+                carouselImages.length > 1 && (
+                  <div className="absolute top-6 left-6 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-4 py-2 rounded-xl uppercase tracking-widest border border-white/10 select-none">
+                    View {carouselIndex + 1} of {carouselImages.length}
+                  </div>
+                )
+              )}
 
               {/* EPC Badges removed as requested */}
             </div>
@@ -495,21 +543,42 @@ export default function PropertyDetail() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 md:gap-4">
-              <button 
-                onClick={() => setShowViewingModal(true)}
-                className="px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap"
-              >
-                <Calendar className="w-4 h-4" />
-                Book a Viewing
-              </button>
-              <button 
-                onClick={handleMessageLandlord}
-                disabled={isMessaging}
-                className="px-8 py-4 bg-white/10 text-secondary rounded-full font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
-              >
-                {isMessaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                Message Landlord
-              </button>
+            {property.status === 'Let Agreed' ? (
+              <>
+                <button 
+                  disabled
+                  className="px-8 py-4 bg-gray-500/20 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Bookings Closed
+                </button>
+                <button 
+                  disabled
+                  className="px-8 py-4 bg-gray-500/10 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Messaging Disabled
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => setShowViewingModal(true)}
+                  className="px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Book a Viewing
+                </button>
+                <button 
+                  onClick={handleMessageLandlord}
+                  disabled={isMessaging}
+                  className="px-8 py-4 bg-white/10 text-secondary rounded-full font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isMessaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                  Message Landlord
+                </button>
+              </>
+            )}
           </div>
         </motion.div>
 
@@ -683,6 +752,93 @@ export default function PropertyDetail() {
         property={property}
         onConfirm={handleViewingConfirm}
       />
+
+      {/* Click-to-Expand Image Lightbox overlay */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[9999] bg-[#0c0214]/98 backdrop-blur-[12px] flex flex-col justify-between p-6 select-none"
+          >
+            {/* Top Bar with counter and close button */}
+            <div className="flex items-center justify-between w-full max-w-7xl mx-auto py-2 z-10">
+              <span className="text-xs font-black uppercase tracking-[0.25em] text-[#D4AF37] italic">
+                Viewing {lightboxIndex + 1} of {carouselImages.length}
+              </span>
+              <button
+                onClick={() => setIsLightboxOpen(false)}
+                className="w-12 h-12 rounded-full bg-white/5 hover:bg-[#0a2f1d] hover:text-accent border border-white/10 hover:border-[#D4AF37]/50 text-white flex items-center justify-center transition-all duration-300 font-bold text-[#D4AF37] text-2xl cursor-pointer hover:scale-105"
+                aria-label="Close Lightbox"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Main Interactive Stage */}
+            <div className="flex-1 flex items-center justify-center w-full max-w-6xl mx-auto relative px-4">
+              {/* Previous Image Trigger Button */}
+              {carouselImages.length > 1 && (
+                <button
+                  onClick={() => setLightboxIndex((prev) => (prev - 1 + carouselImages.length) % carouselImages.length)}
+                  className="absolute left-0 sm:left-4 bg-[#0c0214]/80 border border-[#d4af37]/45 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_20px_rgba(212,175,55,0.45)] w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 z-20 font-bold"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="w-8 h-8" />
+                </button>
+              )}
+
+              {/* Central Expanded Photograph preview */}
+              <motion.img
+                key={lightboxIndex}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                src={carouselImages[lightboxIndex]}
+                alt={`${property.title} - Full size view ${lightboxIndex + 1}`}
+                className="max-w-full max-h-[70vh] object-contain rounded-3xl border border-white/10 shadow-2xl select-none"
+              />
+
+              {/* Next Image Trigger Button */}
+              {carouselImages.length > 1 && (
+                <button
+                  onClick={() => setLightboxIndex((prev) => (prev + 1) % carouselImages.length)}
+                  className="absolute right-0 sm:right-4 bg-[#0c0214]/80 border border-[#d4af37]/45 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_20px_rgba(212,175,55,0.45)] w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 z-20 font-bold"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="w-8 h-8" />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom thumbnail selector rail */}
+            {carouselImages.length > 1 && (
+              <div className="w-full max-w-4xl mx-auto overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-accent">
+                <div className="flex gap-4 justify-center items-center px-4 min-w-max mx-auto py-2">
+                  {carouselImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setLightboxIndex(idx)}
+                      className={cn(
+                        "w-20 aspect-[16/10] sm:w-24 rounded-2xl overflow-hidden border-2 p-0 transition-all duration-300 cursor-pointer focus:outline-none hover:opacity-100 flex-shrink-0",
+                        lightboxIndex === idx 
+                          ? "border-[#D4AF37] scale-105 ring-2 ring-accent/30 opacity-100 shadow-lg"
+                          : "border-transparent opacity-40 hover:border-white/20"
+                      )}
+                      aria-label={`Jump to image ${idx + 1}`}
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover select-none" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

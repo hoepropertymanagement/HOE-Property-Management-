@@ -237,6 +237,16 @@ export default function SearchResults() {
 
   const filteredProperties = useMemo(() => {
     let filtered = [...properties];
+
+    // Filter strictly by Buy/Rent (listing_type) mode
+    filtered = filtered.filter(p => {
+      const type = (p.listing_type || 'Let').toLowerCase();
+      if (searchMode === 'Buy') {
+        return type === 'buy' || type === 'sale';
+      } else {
+        return type === 'let' || type === 'rent' || type === 'renting';
+      }
+    });
     
     // Filter strictly by the selected radius (e.g., 5 miles) from the map center
     const searchString = (activeSearch || query || '').toLowerCase().trim();
@@ -303,7 +313,7 @@ export default function SearchResults() {
     if (preferences.retirement) filtered = filtered.filter(p => p.isRetirement);
 
     return filtered;
-  }, [mapCenter, radius, minPrice, maxPrice, minBeds, maxBeds, selectedType, minBaths, maxBaths, preferences, activeSearch, query]);
+  }, [properties, searchMode, mapCenter, radius, minPrice, maxPrice, minBeds, maxBeds, selectedType, minBaths, maxBaths, preferences, activeSearch, query]);
 
   useEffect(() => {
     if (activeSearch && filteredProperties.length === 0) {

@@ -494,21 +494,39 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
       };
 
       if (selectedAttachment) {
-        // Upload to Firebase Storage
-        const fileExt = selectedAttachment.name.split('.').pop() || '';
-        const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-        const filePath = `chat_attachments/${user.uid}/${uniqueFileName}`;
-        const fileRef = ref(storage, filePath);
-        
-        await uploadBytes(fileRef, selectedAttachment.file);
-        const downloadUrl = await getDownloadURL(fileRef);
+        let downloadUrl = '';
+        try {
+          // Upload to Firebase Storage
+          const fileExt = selectedAttachment.name.split('.').pop() || '';
+          const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+          const filePath = `chat_attachments/${user.uid}/${uniqueFileName}`;
+          const fileRef = ref(storage, filePath);
+          
+          await uploadBytes(fileRef, selectedAttachment.file);
+          downloadUrl = await getDownloadURL(fileRef);
+        } catch (storageErr) {
+          console.warn("Firebase Storage attachment upload failed, falling back to local base64 reader:", storageErr);
+          // Standard base64 fallback so chat still functions perfectly
+          downloadUrl = await new Promise<string>((resolveBase64) => {
+            const r = new FileReader();
+            r.onloadend = () => {
+              resolveBase64(r.result as string || '');
+            };
+            r.onerror = () => {
+              resolveBase64('');
+            };
+            r.readAsDataURL(selectedAttachment.file);
+          });
+        }
 
-        if (selectedAttachment.isImage) {
-          messageData.image = downloadUrl;
-        } else {
-          messageData.document = downloadUrl;
-          messageData.document_name = selectedAttachment.name;
-          messageData.document_type = selectedAttachment.type;
+        if (downloadUrl) {
+          if (selectedAttachment.isImage) {
+            messageData.image = downloadUrl;
+          } else {
+            messageData.document = downloadUrl;
+            messageData.document_name = selectedAttachment.name;
+            messageData.document_type = selectedAttachment.type;
+          }
         }
       }
 

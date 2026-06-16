@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { storage as firebaseStorage } from '../lib/firebase';
 import { ref as firebaseStorageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '../lib/supabase';
 
 import IdentityVerification from '../components/IdentityVerification';
 import LocationSearch from '../components/LocationSearch';
@@ -55,7 +56,8 @@ export default function AddProperty() {
     holdingDeposit: '',
     images: [] as string[],
     noImage: false,
-    status: 'Draft' as 'Draft' | 'Live'
+    status: 'Draft' as 'Draft' | 'Live',
+    listing_type: 'Let' as 'Let' | 'Buy'
   });
 
   const [uploading, setUploading] = useState(false);
@@ -135,7 +137,8 @@ export default function AddProperty() {
             holdingDeposit: data.holdingDeposit ? String(data.holdingDeposit) : '',
             images: data.images || [],
             noImage: !!data.noImage,
-            status: data.status || 'Draft'
+            status: data.status || 'Draft',
+            listing_type: data.listing_type || 'Let'
           };
           setFormData(loadedData);
           
@@ -199,12 +202,49 @@ export default function AddProperty() {
       try {
         const cleanName = fileToUpload.name.replace(/[^a-zA-Z0-9.]/g, "_");
         const uniqueFileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}_${cleanName}`;
-        const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
-        await uploadBytes(fRef, fileToUpload);
-        return await getDownloadURL(fRef);
+        
+        try {
+          // Attempt upload to Supabase Storage inside the 'property-images' bucket
+          const { data, error } = await supabase.storage
+            .from('property-images')
+            .upload(`${user?.uid || 'anonymous'}/${uniqueFileName}`, fileToUpload, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (error) {
+            console.warn("Supabase Storage error in directUpload, resorting to Firebase Storage:", error);
+            throw error;
+          }
+
+          if (data) {
+            const { data: publicUrlData } = supabase.storage
+              .from('property-images')
+              .getPublicUrl(`${user?.uid || 'anonymous'}/${uniqueFileName}`);
+            
+            if (publicUrlData?.publicUrl) {
+              return publicUrlData.publicUrl;
+            }
+          }
+          throw new Error("No upload data or public URL returned from Supabase");
+        } catch (supabaseErr) {
+          console.warn("Primary Supabase Storage failed, falling back to Firebase Storage:", supabaseErr);
+          const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+          await uploadBytes(fRef, fileToUpload);
+          return await getDownloadURL(fRef);
+        }
       } catch (err) {
-        console.error("Direct Upload fallback failed:", err);
-        return null;
+        console.warn("Direct Upload failed for both providers, generating local base64 fallback:", err);
+        return new Promise((resolveBase64) => {
+          const r = new FileReader();
+          r.onloadend = () => {
+            resolveBase64(r.result as string || null);
+          };
+          r.onerror = () => {
+            resolveBase64(null);
+          };
+          r.readAsDataURL(fileToUpload);
+        });
       }
     };
 
@@ -249,13 +289,46 @@ export default function AddProperty() {
               const uniqueFileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
               
               try {
-                const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
-                await uploadBytes(fRef, compressedFile);
-                const downloadUrl = await getDownloadURL(fRef);
-                resolve(downloadUrl);
+                // Attempt compressed upload via Supabase
+                try {
+                  const { data, error } = await supabase.storage
+                    .from('property-images')
+                    .upload(`${user?.uid || 'anonymous'}/${uniqueFileName}`, compressedFile, {
+                      cacheControl: '3600',
+                      upsert: false
+                    });
+
+                  if (error) {
+                    console.warn("Supabase Storage error in compressed upload, falling back to Firebase Storage:", error);
+                    throw error;
+                  }
+
+                  if (data) {
+                     const { data: publicUrlData } = supabase.storage
+                       .from('property-images')
+                       .getPublicUrl(`${user?.uid || 'anonymous'}/${uniqueFileName}`);
+                     
+                     if (publicUrlData?.publicUrl) {
+                       resolve(publicUrlData.publicUrl);
+                       return;
+                     }
+                  }
+                  throw new Error("No upload data returned from Supabase for compressed image");
+                } catch (supabaseErr) {
+                  console.warn("Supabase fallback triggered for compressed image loading:", supabaseErr);
+                  const fRef = firebaseStorageRef(firebaseStorage, `property-images/${user?.uid || 'anonymous'}/${uniqueFileName}`);
+                  await uploadBytes(fRef, compressedFile);
+                  const downloadUrl = await getDownloadURL(fRef);
+                  resolve(downloadUrl);
+                }
               } catch (firebaseErr) {
-                console.error("Firebase Storage Upload failed, falling back to direct:", firebaseErr);
-                directUpload(rawFile).then(resolve);
+                console.warn("Firebase Storage Upload failed too, resolving with efficient local base64 data URL:", firebaseErr);
+                try {
+                  const b64Url = canvas.toDataURL('image/jpeg', 0.5);
+                  resolve(b64Url);
+                } catch (dataUrlErr) {
+                  directUpload(rawFile).then(resolve);
+                }
               }
             }, 'image/jpeg', quality);
           } else {
@@ -420,6 +493,8 @@ export default function AddProperty() {
         securityDeposit: formData.securityDeposit,
         holdingDeposit: formData.holdingDeposit,
         images: formData.images,
+        image_urls: formData.images,
+        listing_type: formData.listing_type || 'Let',
         image: formData.images[0] || '',
         noImage: formData.noImage,
         landlordId: localStorage.getItem('impersonated_landlord_id') || user.uid,
@@ -500,6 +575,8 @@ export default function AddProperty() {
         securityDeposit: formData.securityDeposit,
         holdingDeposit: formData.holdingDeposit,
         images: formData.images,
+        image_urls: formData.images,
+        listing_type: formData.listing_type || 'Let',
         image: formData.images[0] || '',
         noImage: formData.noImage,
         landlordId: localStorage.getItem('impersonated_landlord_id') || user.uid,
@@ -553,6 +630,38 @@ export default function AddProperty() {
           >
             <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">Property Foundation & Toggles</h3>
+
+              {/* Listing Type Chooser (Lettings vs Buy) */}
+              <div className="bg-secondary p-6 rounded-[2.5rem] border border-primary/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#D4AF37] italic">Listing Category *</span>
+                  <p className="text-[10px] text-primary/50 mt-1 font-bold">Select whether this property is for rent (Lettings) or for sale (Sales/Buy)</p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ listing_type: 'Let' })}
+                    className={`flex-1 sm:flex-initial px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${
+                      formData.listing_type === 'Let'
+                        ? 'bg-gradient-to-r from-accent to-[#c299ff] text-[#1a0b2e] shadow-lg shadow-accent/20'
+                        : 'bg-white hover:bg-neutral-50 text-primary border border-primary/10'
+                    }`}
+                  >
+                    Lettings (Rent)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ listing_type: 'Buy' })}
+                    className={`flex-1 sm:flex-initial px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-300 ${
+                      formData.listing_type === 'Buy'
+                        ? 'bg-gradient-to-r from-accent to-[#c299ff] text-[#1a0b2e] shadow-lg shadow-accent/20'
+                        : 'bg-white hover:bg-neutral-50 text-primary border border-primary/10'
+                    }`}
+                  >
+                    Buy (For Sale)
+                  </button>
+                </div>
+              </div>
 
               {/* Core Information Section - Title & Location */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1044,31 +1153,38 @@ export default function AddProperty() {
                     <div className="space-y-10">
                       <div className="relative aspect-video rounded-[3rem] overflow-hidden bg-black shadow-2xl group select-none">
                         <AnimatePresence mode="wait">
-                          <motion.img 
-                            key={`carousel-image-${activeImageIndex}-${formData.images[activeImageIndex]?.slice(-40) || 'placeholder'}`}
-                            src={formData.images[activeImageIndex]}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="w-full h-full object-cover cursor-grab active:cursor-grabbing"
-                            drag="x"
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.6}
-                            onDragEnd={(event, info) => {
-                              const threshold = 50;
-                              if (info.offset.x < -threshold) {
-                                // Swipe left -> Next image
-                                if (activeImageIndex < formData.images.length - 1) {
-                                  setActiveImageIndex(activeImageIndex + 1);
+                          {formData.images[activeImageIndex] ? (
+                            <motion.img 
+                              key={`carousel-image-${activeImageIndex}`}
+                              src={formData.images[activeImageIndex]}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="w-full h-full object-cover cursor-grab active:cursor-grabbing"
+                              drag="x"
+                              dragConstraints={{ left: 0, right: 0 }}
+                              dragElastic={0.6}
+                              onDragEnd={(event, info) => {
+                                const threshold = 50;
+                                if (info.offset.x < -threshold) {
+                                  // Swipe left -> Next image
+                                  if (activeImageIndex < formData.images.length - 1) {
+                                    setActiveImageIndex(activeImageIndex + 1);
+                                  }
+                                } else if (info.offset.x > threshold) {
+                                  // Swipe right -> Previous image
+                                  if (activeImageIndex > 0) {
+                                    setActiveImageIndex(activeImageIndex - 1);
+                                  }
                                 }
-                              } else if (info.offset.x > threshold) {
-                                // Swipe right -> Previous image
-                                if (activeImageIndex > 0) {
-                                  setActiveImageIndex(activeImageIndex - 1);
-                                }
-                              }
-                            }}
-                          />
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-center gap-3">
+                              <Building className="w-12 h-12 text-accent" />
+                              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Image Processing...</p>
+                            </div>
+                          )}
                         </AnimatePresence>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                         
@@ -1091,13 +1207,16 @@ export default function AddProperty() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const newImages = [...formData.images];
-                                // Move selected image to index 0 (main feature)
-                                const [selectedImg] = newImages.splice(activeImageIndex, 1);
-                                newImages.unshift(selectedImg);
-                                updateFormData({ images: newImages });
-                                setActiveImageIndex(0);
-                                showNotification?.("Set as main property image!", "gold");
+                                const newImages = [...formData.images].filter(Boolean);
+                                if (activeImageIndex >= 0 && activeImageIndex < newImages.length) {
+                                  const [selectedImg] = newImages.splice(activeImageIndex, 1);
+                                  if (selectedImg) {
+                                    newImages.unshift(selectedImg);
+                                    updateFormData({ images: newImages });
+                                    setActiveImageIndex(0);
+                                    showNotification?.("Set as main property image!", "gold");
+                                  }
+                                }
                               }}
                               className="px-4 py-2.5 bg-accent text-primary hover:bg-white hover:text-primary transition-all font-black uppercase tracking-widest text-[10px] rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 border border-accent"
                             >
@@ -1139,7 +1258,7 @@ export default function AddProperty() {
                           {/* Right Side: Position Shift & Item Deletion */}
                           <div className="flex flex-wrap items-center justify-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-3xl border border-white/10 shadow-lg">
                             <div className="flex items-center gap-2 px-1 text-accent select-none">
-                              <Sliders className="w-3.5 h-3.5 animate-pulse text-[#D192FF]" />
+                              <Sliders className="w-3.5 h-3.5 text-[#D192FF]" />
                               <span className="text-[10px] font-black uppercase tracking-widest text-[#D192FF]">
                                 Position #{activeImageIndex + 1}
                               </span>

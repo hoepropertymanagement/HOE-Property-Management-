@@ -176,8 +176,11 @@ export default function Home() {
           className="absolute inset-0 z-0"
         >
           <img 
-            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000" 
-            alt="UK City Architecture"
+            src="/images/hero-background.webp" 
+            alt="House of Eden Property Background"
+            fetchPriority="high"
+            loading="eager"
+            decoding="sync"
             className="w-full h-full object-cover brightness-[0.6]"
           />
           <div className="absolute inset-0 bg-primary/20 backdrop-brightness-75"></div>
@@ -667,7 +670,7 @@ export default function Home() {
               whileHover={{ scale: 1.01 }}
               className="relative aspect-[16/9] md:aspect-[21/9] lg:aspect-auto rounded-3xl overflow-hidden group cursor-pointer"
             >
-              <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=1200" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Landlords" />
+              <img src="/images/hero-background.webp" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Landlords" loading="lazy" />
               <div className="absolute inset-0 bg-primary/40 backdrop-blur-[2px] transition-all group-hover:backdrop-blur-none group-hover:bg-primary/20"></div>
               <div className="absolute inset-0 p-12 flex flex-col justify-end">
                 <span className="text-accent uppercase tracking-widest text-xs font-bold mb-4">I am a Landlord</span>

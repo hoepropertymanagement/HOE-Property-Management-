@@ -12,6 +12,25 @@
 ALTER TABLE public.properties 
 ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0 NOT NULL;
 
+-- Ensure the 'properties' table has the image_urls (JSONB array) column
+ALTER TABLE public.properties 
+ADD COLUMN IF NOT EXISTS image_urls JSONB DEFAULT '[]'::jsonb NOT NULL;
+
+-- Ensure the 'properties' table has the listing_type (TEXT) column with a check constraint for Let/Buy
+ALTER TABLE public.properties 
+ADD COLUMN IF NOT EXISTS listing_type TEXT DEFAULT 'Let'::text NOT NULL;
+
+-- Add check constraint for listing_type if it does not already exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'properties_listing_type_check'
+    ) THEN
+        ALTER TABLE public.properties ADD CONSTRAINT properties_listing_type_check CHECK (listing_type IN ('Let', 'Buy'));
+    END IF;
+END;
+$$;
+
 -- 2. Create the secure RPC Postgres function to safely increment property views
 -- We use SECURITY DEFINER so that any visitor can increment the view count 
 -- without granting them write/update permissions on the full property columns.

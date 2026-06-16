@@ -67,6 +67,8 @@
         "bathrooms": { "type": "number" },
         "type": { "type": "string" },
         "images": { "type": "array", "items": { "type": "string" } },
+        "image_urls": { "type": "array", "items": { "type": "string" }, "description": "Array of public Supabase/Firebase image URLs used in the carousel" },
+        "listing_type": { "type": "string", "enum": ["Let", "Buy"], "description": "The type of transaction this property is listed for (Let = For Let, Buy = For Sale)" },
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["Live", "Draft", "Let Agreed", "Paused", "Archived"] },
         "landlordId": { "type": "string" },

@@ -22,20 +22,42 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const isLandlord = profile?.role === 'landlord' || profile?.role === 'both';
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const totalImages = property.images ? property.images.filter(Boolean).length : 0;
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+  const totalImages = (property.image_urls && property.image_urls.length > 0)
+    ? property.image_urls.filter(Boolean).length
+    : (property.images ? property.images.filter(Boolean).length : 0);
+
+  React.useEffect(() => {
+    setCurrentImageIndex(0);
+    setFailedImages({});
+  }, [property.id]);
   
   // Cache buster guarantees the browser displays freshly replaced images instantly
   const cacheBuster = React.useMemo(() => Date.now(), []);
   const prepUrl = (url?: string) => {
     if (!url) return '';
-    if (url.startsWith('data:')) return url;
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}v=${cacheBuster}`;
   };
 
+  const isLetAgreed = property.status === 'Let Agreed' && !isLandlord;
   // We want to show up to 3 real images, then a 4th "more" slide if there are 4+ images
-  const displayImages = property.images ? property.images.filter(Boolean).slice(0, 4).map(img => prepUrl(img)) : [];
-  const hasMoreImages = totalImages > 3;
+  const displayImages = React.useMemo(() => {
+    let list = (property.image_urls && property.image_urls.length > 0)
+      ? [...property.image_urls]
+      : (property.images ? [...property.images] : []);
+    if (list.length === 0 && property.image) {
+      list = [property.image];
+    }
+    const valid = list.filter(Boolean);
+    if (isLetAgreed) {
+      return valid.slice(0, 1).map(img => prepUrl(img));
+    }
+    return valid.slice(0, 4).map(img => prepUrl(img));
+  }, [property.images, property.image_urls, property.image, isLetAgreed, prepUrl]);
+
+  const hasMoreImages = !isLetAgreed && totalImages > 3;
 
   const nextImage = (e?: React.MouseEvent) => {
     if (e) {
@@ -62,18 +84,11 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
       onMouseLeave={() => onHover?.(null)}
       className={cn(
         "group bg-white rounded-3xl overflow-hidden border border-border hover:shadow-2xl transition-all duration-700 cursor-pointer flex flex-col h-full",
-        property.status === 'Let Agreed' && !isLandlord ? "opacity-70 grayscale-[20%]" : ""
+        property.status === 'Let Agreed' && !isLandlord ? "opacity-90" : ""
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[#F5F5F0] touch-pan-y group/carousel">
-        <Link to={`/property/${property.id}`} className={cn("absolute inset-0 z-10", property.status === 'Let Agreed' && !isLandlord ? "pointer-events-none" : "")}>
-          {property.status === 'Let Agreed' && (
-            <div className="absolute inset-0 z-40 bg-[#0a2f1d]/50 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-              <div className="bg-accent text-primary px-6 py-3 rounded-full font-black uppercase tracking-[0.3em] shadow-2xl border-2 border-primary/20 transform -rotate-12 scale-110">
-                Let Agreed
-              </div>
-            </div>
-          )}
+        <Link to={`/property/${property.id}`} className="absolute inset-0 z-10">
           <AnimatePresence mode="popLayout" initial={false}>
             {displayImages.length > 0 ? (
               <motion.div
@@ -95,11 +110,12 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                   }
                 }}
               >
-                {displayImages[currentImageIndex] ? (
+                {displayImages[currentImageIndex] && !failedImages[currentImageIndex] ? (
                   <>
                     <img 
                       src={displayImages[currentImageIndex]} 
                       alt={property.title}
+                      onError={() => setFailedImages(prev => ({ ...prev, [currentImageIndex]: true }))}
                       className={cn(
                         "w-full h-full object-cover pointer-events-none transition-all duration-1000 group-hover:scale-105",
                         currentImageIndex === 3 && hasMoreImages ? "blur-md opacity-70" : ""
@@ -110,7 +126,8 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                   </>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-secondary">
-                    <Home className="w-8 h-8 text-primary/10" />
+                    <Home className="w-12 h-12 text-primary/15 animate-pulse mb-2" />
+                    <span className="text-[9px] font-bold text-primary/30 uppercase tracking-[0.1em]">No Image</span>
                   </div>
                 )}
                 
@@ -141,7 +158,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                   </p>
                 </div>
                 <div className="mt-8 flex gap-2 items-center bg-primary/5 px-4 py-2 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50]"></div>
                   <span className="text-[8px] font-bold text-primary/40 uppercase tracking-[0.3em]">Live Feed Pending</span>
                 </div>
               </div>
@@ -182,9 +199,15 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
           </div>
         )}
 
-        <div className="absolute top-3 left-3 bg-accent text-primary text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-widest shadow-sm">
-          Premium Listing
-        </div>
+        {property.status === 'Let Agreed' ? (
+          <div className="absolute top-3 left-3 bg-[#0a2f1d]/95 backdrop-blur-md border border-[#D4AF37] text-[#D4AF37] text-[11px] font-black px-3.5 py-1.5 rounded-xl uppercase tracking-widest shadow-2xl z-20">
+            Let Agreed
+          </div>
+        ) : (
+          <div className="absolute top-3 left-3 bg-accent text-primary text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-widest shadow-sm z-20">
+            Premium Listing
+          </div>
+        )}
 
         <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
           <button 
@@ -218,7 +241,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
         </div>
       </div>
 
-      <Link to={`/property/${property.id}`} className={cn("p-5 flex-grow flex flex-col", property.status === 'Let Agreed' && !isLandlord ? "pointer-events-none" : "")}>
+      <Link to={`/property/${property.id}`} className="p-5 flex-grow flex flex-col">
         <div className="mb-2">
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-accent font-bold text-xl">{property.price}</h3>
@@ -226,7 +249,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
               <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-primary bg-primary/5 px-2 py-1 rounded-md">
                 <span className={cn(
                   "w-1.5 h-1.5 rounded-full",
-                  (!property.status || property.status === 'Live') ? "bg-[#4CAF50] animate-pulse" : 
+                  (!property.status || property.status === 'Live') ? "bg-[#4CAF50]" : 
                   property.status === 'Let Agreed' ? "bg-accent" : "bg-muted"
                 )}></span> 
                 {property.status || 'Live'}
