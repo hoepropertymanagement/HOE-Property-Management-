@@ -89,6 +89,37 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "email", "phone"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "An enquiry submitted by a user or guest.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "source": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["email", "message"]
+    },
+    "PropertyClick": {
+      "title": "PropertyClick",
+      "description": "A property card click event with metadata.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "landlordId": { "type": "string" },
+        "visitorId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["propertyId", "landlordId", "visitorId"]
     }
   },
   "firestore": {
@@ -137,6 +168,14 @@
         }
       },
       "description": "Stores active verification codes."
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": "Enquiry",
+      "description": "Stores submitted property/contact enquiries."
+    },
+    "/propertyClicks/{clickId}": {
+      "schema": "PropertyClick",
+      "description": "Stores property click event logs."
     }
   }
 }

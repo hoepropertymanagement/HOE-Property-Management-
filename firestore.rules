@@ -39,6 +39,25 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidEnquiry(data) {
+      return data.keys().hasAll(['email', 'message']) &&
+             data.email is string && data.email.size() > 0 &&
+             data.message is string && data.message.size() > 0 &&
+             (!('name' in data) || data.name is string) &&
+             (!('phone' in data) || data.phone is string) &&
+             (!('subject' in data) || data.subject is string) &&
+             (!('source' in data) || data.source is string) &&
+             (!('property_address' in data) || data.property_address is string) &&
+             (!('request_type' in data) || data.request_type is string);
+    }
+
+    function isValidPropertyClick(data) {
+      return data.keys().hasAll(['propertyId', 'landlordId', 'visitorId']) &&
+             data.propertyId is string &&
+             data.landlordId is string &&
+             data.visitorId is string;
+    }
+
     // --- User Profile Rules ---
     function isValidUser(data) {
       let requiredFields = ['uid', 'name', 'isPublicContact', 'showPhoneNumber', 'createdAt', 'updatedAt'];
@@ -179,6 +198,18 @@ service cloud.firestore {
 
     match /verification_codes/{identifier} {
       allow read, write: if false; // Only manageable via Admin SDK
+    }
+
+    // --- Enquiries Rules ---
+    match /enquiries/{enquiryId} {
+      allow create: if isValidEnquiry(incoming());
+      allow read, list: if request.auth != null; // Landlords/admins/agents can view enquiries
+    }
+
+    // --- Property Clicks Rules ---
+    match /propertyClicks/{clickId} {
+      allow create: if isValidPropertyClick(incoming());
+      allow read, list: if true; // Public or logged-in users can read/query clicks (e.g. for analytics valuation page)
     }
   }
 }

@@ -7,6 +7,8 @@ import { cn } from '../lib/utils';
 import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { db } from '../lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 
 interface PropertyCardProps {
@@ -17,8 +19,29 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const { isSaved, toggleSave } = useSavedProperties();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { showNotification } = useNotification();
+
+  const handleCardClick = async () => {
+    try {
+      let visitorId = localStorage.getItem('hoe_visitor_id');
+      if (!visitorId) {
+        visitorId = 'vis_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('hoe_visitor_id', visitorId);
+      }
+      await addDoc(collection(db, 'propertyClicks'), {
+        propertyId: property.id,
+        propertyTitle: property.title || 'Untitled Property',
+        landlordId: property.landlordId || 'unknown',
+        visitorId,
+        userId: user?.uid || null,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("Silent click log failed:", err);
+    }
+  };
+
   const isLandlord = profile?.role === 'landlord' || profile?.role === 'both';
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -82,13 +105,14 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
       transition={{ duration: 0.5 }}
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
+      onClick={handleCardClick}
       className={cn(
         "group bg-white rounded-3xl overflow-hidden border border-border hover:shadow-2xl transition-all duration-700 cursor-pointer flex flex-col h-full",
         property.status === 'Let Agreed' && !isLandlord ? "opacity-90" : ""
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[#F5F5F0] touch-pan-y group/carousel">
-        <Link to={`/property/${property.id}`} className="absolute inset-0 z-10">
+        <Link to={`/property/${property.id}`} target="_blank" className="absolute inset-0 z-10">
           <AnimatePresence mode="popLayout" initial={false}>
             {displayImages.length > 0 ? (
               <motion.div
@@ -241,7 +265,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
         </div>
       </div>
 
-      <Link to={`/property/${property.id}`} className="p-5 flex-grow flex flex-col">
+      <Link to={`/property/${property.id}`} target="_blank" className="p-5 flex-grow flex flex-col">
         <div className="mb-2">
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-accent font-bold text-xl">{property.price}</h3>

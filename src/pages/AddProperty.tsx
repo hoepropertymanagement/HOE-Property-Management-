@@ -161,6 +161,15 @@ export default function AddProperty() {
     if (savedDraft) {
       try {
         const parsed = JSON.parse(savedDraft);
+        if (parsed.images) {
+          parsed.images = parsed.images.filter((img: string) => img && !img.startsWith('blob:') && !img.startsWith('data:'));
+        }
+        if (parsed.floorplan && (parsed.floorplan.startsWith('blob:') || parsed.floorplan.startsWith('data:'))) {
+          parsed.floorplan = null;
+        }
+        if (parsed.epcCertificate && (parsed.epcCertificate.startsWith('blob:') || parsed.epcCertificate.startsWith('data:'))) {
+          parsed.epcCertificate = null;
+        }
         if (parsed.description || parsed.monthlyRent || parsed.contactNumber || parsed.images?.length > 0) {
           setCachedDraftData(parsed);
           setShowDraftResumeBanner(true);
@@ -453,6 +462,15 @@ export default function AddProperty() {
       showNotification("Please verify your email to publish listings", "red");
       return;
     }
+
+    const hasTemporaryImages = formData.images.some(img => img.startsWith('blob:') || img.startsWith('data:'));
+    const hasTemporaryFloorplan = formData.floorplan && (formData.floorplan.startsWith('blob:') || formData.floorplan.startsWith('data:'));
+    const hasTemporaryEPC = formData.epcCertificate && (formData.epcCertificate.startsWith('blob:') || formData.epcCertificate.startsWith('data:'));
+    
+    if (uploading || hasTemporaryImages || hasTemporaryFloorplan || hasTemporaryEPC) {
+      showNotification("Your media files are still uploading securely. Please wait a moment for the cloud backup to complete.", "gold");
+      return;
+    }
     
     setIsPublishing(true);
     setError(null);
@@ -533,6 +551,15 @@ export default function AddProperty() {
   const handleSaveDraft = async () => {
     if (!user) {
       setError('You must be logged in to save a draft.');
+      return;
+    }
+
+    const hasTemporaryImages = formData.images.some(img => img.startsWith('blob:') || img.startsWith('data:'));
+    const hasTemporaryFloorplan = formData.floorplan && (formData.floorplan.startsWith('blob:') || formData.floorplan.startsWith('data:'));
+    const hasTemporaryEPC = formData.epcCertificate && (formData.epcCertificate.startsWith('blob:') || formData.epcCertificate.startsWith('data:'));
+    
+    if (uploading || hasTemporaryImages || hasTemporaryFloorplan || hasTemporaryEPC) {
+      showNotification("Your media files are still uploading securely. Please wait a moment for the cloud backup to complete.", "gold");
       return;
     }
     

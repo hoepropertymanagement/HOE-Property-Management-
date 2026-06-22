@@ -220,6 +220,8 @@ export default function SearchResults() {
         const q = fireQuery(collection(db, 'properties'), fireWhere('status', 'in', ['Live', 'Let Agreed']));
         const querySnapshot = await getDocs(q);
         const props = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+        
+        // Only use properties from the database
         setProperties(props);
       } catch (err: any) {
         if (err.code === 'permission-denied') {

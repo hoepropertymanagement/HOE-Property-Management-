@@ -178,10 +178,17 @@ export default function PropertyDetail() {
           // Record a real-time property view event
           if (propData.landlordId) {
             try {
+              let visitorId = localStorage.getItem('hoe_visitor_id');
+              if (!visitorId) {
+                visitorId = 'vis_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('hoe_visitor_id', visitorId);
+              }
               await addDoc(collection(db, 'propertyViews'), {
                 propertyId: id,
                 propertyTitle: propData.title || 'Untitled Property',
                 landlordId: propData.landlordId,
+                visitorId,
+                userId: user?.uid || null,
                 timestamp: new Date().toISOString()
               });
             } catch (viewError) {
@@ -189,29 +196,11 @@ export default function PropertyDetail() {
             }
           }
         } else {
-          // Fallback to system-defined mock properties in memory
-          const mockProp = mockProperties.find(p => p.id === id);
-          if (mockProp) {
-            setProperty(mockProp);
-            setLandlord({
-              name: "Alexandra Eden",
-              bio: "Co-founder of HOE Property Management & House of Eden. Committed to providing premium and transparent listings for all tenants.",
-              contactNumber: mockProp.contactNumber || "07700 900077",
-              photoURL: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
-              isPublicContact: true,
-              showPhoneNumber: true,
-              role: "landlord",
-              isPhoneVerified: true
-            });
-          }
+          setProperty(null);
         }
       } catch (error) {
         console.error("Error fetching property:", error);
-        // Fallback in case of database connectivity issues
-        const mockProp = mockProperties.find(p => p.id === id);
-        if (mockProp) {
-          setProperty(mockProp);
-        }
+        setProperty(null);
       } finally {
         setLoading(false);
       }
