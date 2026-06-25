@@ -40,6 +40,7 @@ export default function AddProperty() {
     encodedUniqueNumber: '',
     isStudent: false,
     isShared: false,
+    isHmo: false,
     isBillsIncluded: false,
     billsDescription: '',
     councilTaxBand: '',
@@ -121,6 +122,7 @@ export default function AddProperty() {
             encodedUniqueNumber: data.encodedUniqueNumber || data.referenceNumber || '',
             isStudent: !!data.isStudent,
             isShared: !!data.isShared,
+            isHmo: !!data.isHmo,
             isBillsIncluded: !!data.isBillsIncluded,
             billsDescription: data.billsDescription || '',
             councilTaxBand: data.councilTaxBand || '',
@@ -494,6 +496,7 @@ export default function AddProperty() {
         referenceNumber: finalUniqueRef,
         isStudent: formData.isStudent,
         isShared: formData.isShared,
+        isHmo: formData.isHmo,
         isBillsIncluded: formData.isBillsIncluded,
         billsDescription: formData.billsDescription,
         councilTaxBand: formData.councilTaxBand,
@@ -585,6 +588,7 @@ export default function AddProperty() {
         referenceNumber: finalUniqueRef,
         isStudent: formData.isStudent,
         isShared: formData.isShared,
+        isHmo: formData.isHmo,
         isBillsIncluded: formData.isBillsIncluded,
         billsDescription: formData.billsDescription,
         councilTaxBand: formData.councilTaxBand,
@@ -655,7 +659,7 @@ export default function AddProperty() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
+            <div className="space-y-6 sm:space-y-8 bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">Property Foundation & Toggles</h3>
 
               {/* Listing Type Chooser (Lettings vs Buy) */}
@@ -771,7 +775,8 @@ export default function AddProperty() {
                 {[
                   { id: 'isShared', label: 'Shared Accommodation', desc: 'Listing for individual rooms' },
                   { id: 'isStudent', label: 'Student Housing', desc: 'Tags as student friendly' },
-                  { id: 'isBillsIncluded', label: 'Bills Included', desc: 'Utilities included in rent' }
+                  { id: 'isBillsIncluded', label: 'Bills Included', desc: 'Utilities included in rent' },
+                  { id: 'isHmo', label: 'HMO Licensed', desc: 'Has valid HMO License' }
                 ].map(item => (
                   <div key={item.id} className="flex items-center justify-between p-6 bg-secondary rounded-[2rem] border border-primary/5">
                     <div>
@@ -793,6 +798,13 @@ export default function AddProperty() {
                   </div>
                 ))}
               </div>
+
+              {(formData.isShared || formData.isHmo) && (
+                <div className="p-6 bg-accent/5 border border-accent/20 rounded-[2rem] text-accent/80 text-xs leading-relaxed">
+                  <p className="font-black uppercase tracking-widest text-[10px] text-accent mb-2">HMO Compliance Advisory</p>
+                  If renting to 3+ unrelated people (Shared Accommodation), you must hold a valid HMO License from your local council. Failure to do so may result in Rent Repayment Orders of up to 12 months' rent.
+                </div>
+              )}
 
               {formData.isBillsIncluded && (
                 <motion.div 
@@ -877,7 +889,7 @@ export default function AddProperty() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
+            <div className="space-y-6 sm:space-y-8 bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">Narrative & Floorplans</h3>
               
               <div>
@@ -885,7 +897,7 @@ export default function AddProperty() {
                 <textarea 
                   value={formData.description}
                   onChange={(e) => updateFormData({ description: e.target.value })}
-                  className="w-full bg-secondary p-10 rounded-[3rem] outline-none focus:ring-2 ring-accent transition-all font-medium text-primary border border-primary/10 h-64" 
+                  className="w-full bg-secondary p-5 sm:p-10 rounded-[1.5rem] sm:rounded-[3rem] outline-none focus:ring-2 ring-accent transition-all font-medium text-primary border border-primary/10 h-64" 
                   placeholder="Describe your property in detail (Min 50 characters)..." 
                 />
               </div>
@@ -895,7 +907,7 @@ export default function AddProperty() {
                 <div 
                   onClick={() => document.getElementById('floorplan-upload')?.click()}
                   className={cn(
-                    "p-12 bg-secondary rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
+                    "p-6 sm:p-12 bg-secondary rounded-[1.5rem] sm:rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
                     formData.floorplan && "border-green-500/30 bg-green-50/10"
                   )}
                 >
@@ -924,7 +936,7 @@ export default function AddProperty() {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-8"
           >
-            <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
+            <div className="space-y-6 sm:space-y-8 bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-primary/5 pb-6">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary border-l-4 border-accent pl-4">Energy Performance (EPC)</h3>
@@ -1018,7 +1030,7 @@ export default function AddProperty() {
                   <div 
                     onClick={() => document.getElementById('epc-upload')?.click()}
                     className={cn(
-                      "p-16 bg-secondary/50 rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
+                      "p-6 sm:p-16 bg-secondary/50 rounded-[1.5rem] sm:rounded-[2.5rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center",
                       uploading && "opacity-50 pointer-events-none"
                     )}
                   >
@@ -1052,7 +1064,7 @@ export default function AddProperty() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
+            <div className="space-y-6 sm:space-y-8 bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary mb-8 border-l-4 border-accent pl-4">Pricing & Financials</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1112,7 +1124,7 @@ export default function AddProperty() {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-8"
           >
-            <div className="space-y-8 bg-white p-10 rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
+            <div className="space-y-6 sm:space-y-8 bg-white p-5 sm:p-10 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary border-l-4 border-accent pl-4">Media & Gallery</h3>
                 <div className="flex items-center gap-4 px-6 py-3 bg-secondary rounded-full border border-primary/5">
@@ -1136,7 +1148,7 @@ export default function AddProperty() {
               </div>
 
               {formData.noImage ? (
-                <div className="p-20 bg-primary rounded-[3rem] text-center border-4 border-accent border-dashed flex flex-col items-center gap-6 relative overflow-hidden group">
+                <div className="p-8 sm:p-20 bg-primary rounded-[1.5rem] sm:rounded-[3rem] text-center border-4 border-accent border-dashed flex flex-col items-center gap-6 relative overflow-hidden group">
                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
                    <div className="w-24 h-24 rounded-full bg-accent/20 flex items-center justify-center relative z-10 animate-pulse">
                      <Building className="w-12 h-12 text-accent" />
@@ -1149,7 +1161,7 @@ export default function AddProperty() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div 
                       onClick={() => document.getElementById('gallery-upload')?.click()}
-                      className="p-16 bg-secondary rounded-[3rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center relative"
+                      className="p-6 sm:p-16 bg-secondary rounded-[1.5rem] sm:rounded-[3rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center relative"
                     >
                       <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl shadow-accent/5">
                         <Upload className="w-10 h-10 text-accent" />
@@ -1160,10 +1172,10 @@ export default function AddProperty() {
                       </div>
                       <input id="gallery-upload" type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleImageChange(e)} />
                     </div>
-
+ 
                     <div 
                       onClick={() => document.getElementById('camera-capture')?.click()}
-                      className="p-16 bg-secondary rounded-[3rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center relative"
+                      className="p-6 sm:p-16 bg-secondary rounded-[1.5rem] sm:rounded-[3rem] border-2 border-dashed border-primary/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-center relative"
                     >
                       <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl shadow-accent/5">
                         <Camera className="w-10 h-10 text-accent" />
@@ -1494,7 +1506,7 @@ export default function AddProperty() {
             </Link>
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div>
-                <h1 className="text-6xl md:text-7xl font-serif italic text-primary leading-tight tracking-tighter">HOE Property Management <span className="text-accent underline decoration-primary/10">Listing</span></h1>
+                <h1 className="text-3xl sm:text-5xl md:text-7xl font-serif italic text-primary leading-tight tracking-tighter">HOE Property Management <span className="text-accent underline decoration-primary/10">Listing</span></h1>
                 <p className="text-[11px] font-black uppercase tracking-[0.5em] text-accent mt-2 italic">House of Eden</p>
                 <p className="text-[11px] font-black uppercase tracking-[0.5em] text-primary/30 mt-4 pl-1 border-l-2 border-accent">Secure Landlord Deployment System</p>
               </div>
@@ -1513,7 +1525,7 @@ export default function AddProperty() {
             {renderStep()}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white/50 backdrop-blur-xl p-8 rounded-[3.5rem] border border-primary/5 shadow-2xl relative z-10">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white/50 backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[3.5rem] border border-primary/5 shadow-2xl relative z-10">
             <button 
               onClick={() => step > 1 ? setStep(step - 1) : navigate('/dashboard/landlord/properties')}
               className="w-full sm:w-auto px-8 py-5 text-primary/40 font-black uppercase tracking-[0.3em] text-[10px] hover:text-primary transition-all rounded-full border border-primary/5 shadow-sm active:scale-95 text-center"

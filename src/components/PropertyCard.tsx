@@ -192,7 +192,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
 
         {/* Navigation Arrows */}
         {displayImages.length > 1 && (
-          <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 pointer-events-none z-30">
+          <div className="absolute inset-0 flex items-center justify-between px-3 opacity-100 md:opacity-0 md:group-hover/carousel:opacity-100 transition-all duration-300 pointer-events-none z-30">
             <button 
               onClick={prevImage}
               className="absolute left-3 top-1/2 -translate-y-1/2 bg-[#0c0214]/75 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_10px_rgba(212,175,55,0.4)] w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 pointer-events-auto"

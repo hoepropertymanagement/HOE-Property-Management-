@@ -535,7 +535,7 @@ export default function SearchResults() {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-[calc(100%+8px)] right-0 w-[calc(100vw-24px)] md:w-80 bg-primary border border-white/10 rounded-[2.5rem] shadow-2xl z-[1200] p-8 overflow-hidden"
+                    className="absolute top-[calc(100%+8px)] right-0 w-[calc(100vw-24px)] md:w-80 bg-primary border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl z-[1200] p-4 md:p-8 overflow-hidden"
                   >
                   <div className="space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
                     <div>
@@ -741,19 +741,19 @@ export default function SearchResults() {
 
       <div className={cn(
         "max-w-[1920px] mx-auto flex flex-col lg:flex-row min-h-screen",
-      )}>
+      )} style={{ paddingTop: `${navbarHeight + (isMobile ? 104 : 56)}px` }}>
         {/* Listings Section */}
         <div className={cn(
-          "bg-[#F9F7F2] p-6 lg:px-12 lg:py-10 border-r border-border",
+          "bg-[#F9F7F2] p-4 sm:p-6 lg:px-12 lg:py-10 border-r border-border",
           viewMode === 'split' ? "w-full lg:w-[600px] xl:w-[650px]" : "w-full",
           showMapMobile && "hidden lg:block"
         )}>
-          <div className="flex justify-between items-center mb-10 border-b border-border pb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-10 border-b border-border pb-6 gap-4">
             <div>
-              <h2 className="font-serif text-3xl leading-tight text-primary">Properties in <span className="italic">{activeSearch || 'UK'}</span></h2>
+              <h2 className="font-serif text-2xl sm:text-3xl leading-tight text-primary">Properties in <span className="italic">{activeSearch || 'UK'}</span></h2>
               <p className="text-[10px] text-muted uppercase tracking-widest font-bold mt-2">Verified Lettings and Sales</p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Results</p>
               <p className="text-xl font-bold text-primary">{filteredProperties.length}</p>
             </div>

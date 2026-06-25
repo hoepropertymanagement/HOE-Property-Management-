@@ -453,17 +453,17 @@ export default function PropertyDetail() {
                 <>
                   <button 
                     onClick={() => setCarouselIndex((prev) => (prev - 1 + carouselImages.length) % carouselImages.length)}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
+                    className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
                     aria-label="Previous view"
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
                   </button>
                   <button 
                     onClick={() => setCarouselIndex((prev) => (prev + 1) % carouselImages.length)}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
+                    className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 bg-[#0c0214]/80 border border-[#d4af37]/40 text-[#D4AF37] hover:bg-[#0a2f1d] hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-20 hover:scale-105 pointer-events-auto"
                     aria-label="Next view"
                   >
-                    <ChevronRight className="w-6 h-6" />
+                    <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
                   </button>
                 </>
               )}
@@ -531,19 +531,19 @@ export default function PropertyDetail() {
               <span className="text-accent/80 text-base md:text-lg">{property.price.split(' ')[1]}</span>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3 md:gap-4">
             {property.status === 'Let Agreed' ? (
               <>
                 <button 
                   disabled
-                  className="px-8 py-4 bg-gray-500/20 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/20 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
                 >
                   <Calendar className="w-4 h-4" />
                   Bookings Closed
                 </button>
                 <button 
                   disabled
-                  className="px-8 py-4 bg-gray-500/10 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/10 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Messaging Disabled
@@ -553,7 +553,7 @@ export default function PropertyDetail() {
               <>
                 <button 
                   onClick={() => setShowViewingModal(true)}
-                  className="px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="w-full sm:w-auto px-8 py-4 bg-accent text-secondary rounded-full font-bold hover:bg-accent-hover transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <Calendar className="w-4 h-4" />
                   Book a Viewing
@@ -561,7 +561,7 @@ export default function PropertyDetail() {
                 <button 
                   onClick={handleMessageLandlord}
                   disabled={isMessaging}
-                  className="px-8 py-4 bg-white/10 text-secondary rounded-full font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
+                  className="w-full sm:w-auto px-8 py-4 bg-white/10 text-secondary rounded-full font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap"
                 >
                   {isMessaging ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                   Message Landlord
@@ -588,7 +588,7 @@ export default function PropertyDetail() {
                    </span>
                 )}
               </div>
-              <h1 className="text-4xl md:text-6xl font-serif italic mb-4">{property.title}</h1>
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-serif italic mb-4">{property.title}</h1>
               <div className="flex items-center gap-2 text-primary/60 mb-8">
                 <MapPin className="w-5 h-5 text-accent" />
                 <span className="text-lg">{property.location}</span>

@@ -18,31 +18,24 @@ export default function DashboardGateway() {
 
   useEffect(() => {
     if (!loading && profile) {
-      // Force redirect for Agents / Master Admins, unless explicitly reselecting
-      if (isAgentUser && !reselect) {
-        if (profile.role !== 'agent') {
-          updateProfile({ role: 'agent' }).catch(console.error);
-        }
-        navigate('/dashboard/agent', { replace: true });
-        return;
-      }
-
-      if (!isAgentUser) {
-        if (profile.role === 'tenant') {
-          navigate('/dashboard/tenant', { replace: true });
-        } else if (profile.role === 'landlord') {
-          navigate('/dashboard/landlord', { replace: true });
-        } else if (profile.role === 'agent') {
-          // fallback if role is agent but they are no longer in the allowed emails list somehow
+      if (profile.role === 'tenant') {
+        navigate('/dashboard/tenant', { replace: true });
+      } else if (profile.role === 'landlord') {
+        navigate('/dashboard/landlord', { replace: true });
+      } else if (profile.role === 'agent') {
+        if (isAgentUser) {
+          navigate('/dashboard/agent', { replace: true });
+        } else {
+          // fallback if role is agent but they are no longer in the allowed emails list
           navigate('/dashboard/landlord', { replace: true });
         }
       }
     }
-  }, [profile, loading, navigate, isAgentUser, reselect]);
+  }, [profile, loading, navigate, isAgentUser]);
 
   const selectRole = async (role: 'tenant' | 'landlord' | 'both' | 'agent') => {
     if (profile) {
-      if (profile.role !== 'both' && profile.role !== 'agent' && !isAgentUser) {
+      if (profile.role !== 'both' && profile.role !== 'agent') {
         await updateProfile({ role });
       }
     }
@@ -111,13 +104,13 @@ export default function DashboardGateway() {
   // If role is 'both' or user is an agent, we show the path selector
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[#0a1a0f] flex items-center justify-center p-4">
-      <div className={cn("w-full transition-all duration-500", isAgentUser ? "max-w-6xl" : "max-w-4xl")}>
+      <div className="w-full transition-all duration-500 max-w-4xl">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-6xl font-serif text-accent italic mb-4">Select Your Portal</h1>
           <p className="text-secondary/60 uppercase tracking-[0.3em] text-[10px] md:text-xs">Choose how you'd like to manage your account today</p>
         </div>
 
-        <div className={cn("grid gap-8 transition-all duration-500", isAgentUser ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        <div className="grid gap-8 transition-all duration-500 md:grid-cols-2">
           {/* Landlord Card */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -155,27 +148,6 @@ export default function DashboardGateway() {
               Enter Portal <ArrowRight className="w-4 h-4" />
             </div>
           </motion.button>
-
-          {/* Agent Card */}
-          {isAgentUser && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => selectRole('agent')}
-              className="group relative overflow-hidden bg-[#140526] border border-[#3b82f6]/40 rounded-[2.5rem] p-12 text-left transition-all hover:border-[#3b82f6] shadow-[0_0_40px_rgba(59,130,246,0.05)] hover:shadow-[0_0_40px_rgba(59,130,246,0.15)] flex flex-col items-center text-center h-full"
-            >
-              <div className="w-24 h-24 bg-blue-500/10 border border-[#3b82f6]/20 rounded-full flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
-                <ShieldCheck className="w-10 h-10 text-blue-400" />
-              </div>
-              <h2 className="text-4xl font-serif text-white mb-6 uppercase tracking-widest font-bold">Agent Portal</h2>
-              <p className="text-white/60 mb-10 max-w-sm text-sm leading-relaxed">
-                Oversee the property ecosystem, approve listings, handle high-profile portfolios, and manage user roles.
-              </p>
-              <div className="mt-auto px-10 py-5 w-full bg-blue-600/80 text-white rounded-xl font-black uppercase tracking-[0.3em] text-[12px] flex items-center justify-center gap-3 transition-colors group-hover:bg-blue-600 group-hover:text-white border border-transparent">
-                Enter Portal <ArrowRight className="w-4 h-4" />
-              </div>
-            </motion.button>
-          )}
         </div>
       </div>
     </div>
