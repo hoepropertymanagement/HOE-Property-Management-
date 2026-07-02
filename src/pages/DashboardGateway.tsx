@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Key, Briefcase, ArrowRight, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, EcosystemRole } from '../context/AuthContext';
 
 export default function DashboardGateway() {
   const navigate = useNavigate();
@@ -11,13 +11,13 @@ export default function DashboardGateway() {
   const { user, profile, updateProfile, loading } = useAuth();
 
   const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
-  const isAgentUser = user?.email && allowedAgentEmails.includes(user.email.toLowerCase());
+  const isAgentUser = (user?.email && allowedAgentEmails.includes(user.email.toLowerCase())) || profile?.role === 'agent';
 
   const searchParams = new URLSearchParams(location.search);
   const reselect = searchParams.get('reselect') === 'true';
 
   useEffect(() => {
-    if (!loading && profile) {
+    if (!loading && profile && !reselect) {
       if (profile.role === 'tenant') {
         navigate('/dashboard/tenant', { replace: true });
       } else if (profile.role === 'landlord') {
@@ -31,9 +31,9 @@ export default function DashboardGateway() {
         }
       }
     }
-  }, [profile, loading, navigate, isAgentUser]);
+  }, [profile, loading, navigate, isAgentUser, reselect]);
 
-  const selectRole = async (role: 'tenant' | 'landlord' | 'both' | 'agent') => {
+  const selectRole = async (role: EcosystemRole) => {
     if (profile) {
       if (profile.role !== 'both' && profile.role !== 'agent') {
         await updateProfile({ role });

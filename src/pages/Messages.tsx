@@ -415,6 +415,10 @@ export default function Messages({ type }: { type?: 'tenant' | 'landlord' | 'age
           }));
 
           setChats(formattedChats);
+          if (selectedChatId && !formattedChats.some(c => c.id === selectedChatId)) {
+            setSelectedChatId(null);
+            setMessages([]);
+          }
           setLoading(false);
         }, (err) => {
           console.error("Failed to load conversations:", err);

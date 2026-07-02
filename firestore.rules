@@ -105,41 +105,15 @@ service cloud.firestore {
     }
 
     // --- Conversation Rules ---
-    function isValidConversation(data) {
-      return data.keys().hasAll(['participantIds', 'updatedAt']) &&
-             data.participantIds is list && data.participantIds.size() == 2 &&
-             (request.auth == null || request.auth.uid in data.participantIds) &&
-             data.updatedAt is timestamp &&
-             (!('propertyId' in data) || (data.propertyId is string && data.propertyId.size() <= 100)) &&
-             (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 2000)) &&
-             (!('lastMessageAt' in data) || (data.lastMessageAt is timestamp)) &&
-             (!('createdAt' in data) || (data.createdAt is timestamp));
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null;
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
     }
 
-    match /conversations/{conversationId} {
-      allow get: if request.auth == null || request.auth.uid in existing().participantIds;
-      allow list: if request.auth == null || request.auth.uid in resource.data.participantIds;
-      allow create: if isValidConversation(incoming()) && incoming().updatedAt == request.time;
-      allow update: if (request.auth == null || request.auth.uid in existing().participantIds) && 
-                    isValidConversation(incoming()) && 
-                    incoming().participantIds == existing().participantIds &&
-                    incoming().updatedAt == request.time;
-      
-      // --- Message Rules ---
-      function isValidMessage(data) {
-        return data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
-               (request.auth == null || data.senderId == request.auth.uid) &&
-               data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
-               data.createdAt is timestamp &&
-               data.createdAt == request.time;
-      }
-
-      match /messages/{messageId} {
-        allow get: if request.auth == null || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
-        allow list: if request.auth == null || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
-        allow create: if (request.auth == null || request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds) &&
-                      isValidMessage(incoming());
-      }
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null;
     }
 
     // --- Property Rules ---
@@ -163,13 +137,7 @@ service cloud.firestore {
 
     match /properties/{propertyId} {
       allow get: if true;
-      allow list: if resource.data.status == 'Live' || 
-                   resource.data.status == 'Let Agreed' ||
-                   (request.auth == null) ||
-                   (request.auth != null && (
-                     ('landlordId' in resource.data && resource.data.landlordId == request.auth.uid) ||
-                     ('created_by' in resource.data && resource.data.created_by == request.auth.uid)
-                   ));
+      allow list: if resource.data.status in ['Live', 'Let Agreed'] || request.auth != null;
       allow create: if isValidProperty(incoming()) && 
                     incoming().createdAt == request.time &&
                     incoming().updatedAt == request.time;

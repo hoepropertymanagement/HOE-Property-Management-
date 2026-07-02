@@ -189,9 +189,9 @@ export default function App() {
                       <Route path="/dashboard/landlord/tenants" element={<ProtectedRoute requireLandlord><ManageTenants /></ProtectedRoute>} />
                       
                       {/* Tenant Routes */}
-                      <Route path="/dashboard/tenant" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />
-                      <Route path="/dashboard/tenant/saved" element={<ProtectedRoute><SavedPropertiesPage /></ProtectedRoute>} />
-                      <Route path="/dashboard/tenant/messages" element={<ProtectedRoute><Messages type="tenant" /></ProtectedRoute>} />
+                      <Route path="/dashboard/tenant" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
+                      <Route path="/dashboard/tenant/saved" element={<ProtectedRoute requireTenant><SavedPropertiesPage /></ProtectedRoute>} />
+                      <Route path="/dashboard/tenant/messages" element={<ProtectedRoute requireTenant><Messages type="tenant" /></ProtectedRoute>} />
                       
                       {/* Agent Routes */}
                       <Route path="/dashboard/agent" element={<ProtectedRoute requireAgent><AgentDashboard tab="overview" /></ProtectedRoute>} />
@@ -200,7 +200,7 @@ export default function App() {
                       <Route path="/dashboard/agent/messages" element={<ProtectedRoute requireAgent><Messages type="agent" /></ProtectedRoute>} />
                       
                       {/* Fallbacks */}
-                      <Route path="/tenant/*" element={<ProtectedRoute><TenantDashboard /></ProtectedRoute>} />
+                      <Route path="/tenant/*" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
                       <Route path="/landlord/*" element={<ProtectedRoute requireLandlord><LandlordDashboard /></ProtectedRoute>} />
                     </Routes>
                   </Suspense>

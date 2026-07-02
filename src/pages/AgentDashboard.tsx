@@ -287,6 +287,27 @@ export default function AgentDashboard({ tab: propTab }: AgentDashboardProps) {
     try {
       await deleteDoc(doc(db, `users/${user?.uid}/landlords`, id));
       setLandlords(prev => prev.filter(l => l.id !== id));
+
+      // Trigger participant cleanup for this landlord's conversations for the old agent
+      if (user?.uid) {
+        try {
+          const userRef = doc(db, 'users', id);
+          await updateDoc(userRef, { managed_by: null, managedBy: null }).catch(() => {});
+
+          const qConv = query(collection(db, 'conversations'), where('participant_ids', 'array-contains', user.uid));
+          const snapConv = await getDocs(qConv);
+          snapConv.forEach(async (cDoc) => {
+            const data = cDoc.data();
+            if (data.landlord_id === id || data.property_landlord_id === id || (data.participant_ids && data.participant_ids.includes(id))) {
+              const updatedParticipants = (data.participant_ids || []).filter((pid: string) => pid !== user.uid);
+              await updateDoc(doc(db, 'conversations', cDoc.id), { participant_ids: updatedParticipants }).catch(() => {});
+            }
+          });
+        } catch (cleanupErr) {
+          console.error("Cleanup error:", cleanupErr);
+        }
+      }
+
       showNotification(`Landlord ${name} deactivated from roster.`, "gold");
     } catch (e) {
       showNotification("Failed to deactivate landlord roster contact.", "red");

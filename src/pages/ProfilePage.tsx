@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, EcosystemRole } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { User, Mail, Phone, FileText, Shield, Save, Camera, ToggleLeft as Toggle, Loader2, CheckCircle2, Image as ImageIcon, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
@@ -19,14 +19,14 @@ export default function ProfilePage() {
     showPhoneNumber: false,
     showEmail: false,
     photoURL: '',
-    role: 'tenant' as 'tenant' | 'landlord' | 'both' | 'agent'
+    role: 'tenant' as EcosystemRole
   });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showVerify, setShowVerify] = useState<{ type: 'phone' | 'email'; value: string } | null>(null);
 
-  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
   const isAgentUser = (user?.email || profile?.email) && allowedAgentEmails.includes((user?.email || profile?.email || '').toLowerCase());
 
   useEffect(() => {
@@ -278,10 +278,11 @@ export default function ProfilePage() {
               <div className="space-y-10 pt-12 border-t border-white/5">
                 <h3 className="text-sm font-black uppercase tracking-[0.4em] text-accent border-l-4 border-accent pl-6">Ecosystem Role</h3>
                 <p className="text-secondary/60 text-xs px-2 -mt-6">Choose how you'd like to access and navigate the House of Eden ecosystem. This determines your primary dashboard view.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-2">
                   {[
+                    { id: 'tenant', label: 'Tenant Portal', desc: 'Searching for home' },
                     { id: 'landlord', label: 'Landlord Portal', desc: 'Property management' },
-                    { id: 'tenant', label: 'Tenant Portal', desc: 'Searching for home' }
+                    { id: 'both', label: 'Dual Access Portal', desc: 'Access both portals' }
                   ].map((r) => (
                     <button
                       key={r.id}

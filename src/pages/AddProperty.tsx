@@ -940,13 +940,43 @@ export default function AddProperty() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-primary/5 pb-6">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary border-l-4 border-accent pl-4">Energy Performance (EPC)</h3>
-                  <p className="text-[11px] text-primary/40 font-medium uppercase tracking-wider mt-2 pl-5">Upload certificate document or photo (Optional)</p>
+                  <p className="text-[11px] text-primary/40 font-medium uppercase tracking-wider mt-2 pl-5">Upload certificate document or photo and select rating grades</p>
                 </div>
                 {!formData.epcCertificate && (
                   <span className="text-[9px] font-black uppercase tracking-widest text-accent bg-accent/10 px-3 py-1.5 rounded-full self-start sm:self-auto">
                     Optional Step
                   </span>
                 )}
+              </div>
+
+              {/* EPC Code Dropdowns (EE Rating & EI Rating) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Energy Efficiency (EE) Rating *</label>
+                  <select 
+                    value={formData.epcEE}
+                    onChange={(e) => updateFormData({ epcEE: e.target.value })}
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  >
+                    <option value="">Select EE Rating</option>
+                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(grade => (
+                      <option key={grade} value={grade}>Grade {grade}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4 block px-2 italic">Environmental Impact (EI) Rating *</label>
+                  <select 
+                    value={formData.epcEI}
+                    onChange={(e) => updateFormData({ epcEI: e.target.value })}
+                    className="w-full bg-secondary p-5 rounded-2xl outline-none border border-primary/10 focus:ring-2 ring-accent font-bold text-sm"
+                  >
+                    <option value="">Select EI Rating</option>
+                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(grade => (
+                      <option key={grade} value={grade}>Grade {grade}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

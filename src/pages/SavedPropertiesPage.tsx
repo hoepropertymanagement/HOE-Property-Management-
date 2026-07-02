@@ -9,7 +9,7 @@ import { useSavedProperties } from '../context/SavedPropertiesContext';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { db } from '../lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function SavedPropertiesPage() {
   const { savedIds, toggleSave } = useSavedProperties();
@@ -26,7 +26,8 @@ export default function SavedPropertiesPage() {
       }
       setLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'properties'));
+        const q = query(collection(db, 'properties'), where('status', 'in', ['Live', 'Let Agreed']));
+        const querySnapshot = await getDocs(q);
         const allProps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         const filtered = allProps.filter(p => savedIds.has(p.id));
         setSavedProperties(filtered);

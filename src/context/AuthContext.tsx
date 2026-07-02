@@ -8,6 +8,9 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type UnifiedUser = FirebaseUser | (SupabaseUser & { uid: string; displayName: string | null; photoURL: string | null; emailVerified: boolean });
 
+export const ROLES = ['tenant', 'landlord', 'both', 'agent'] as const;
+export type EcosystemRole = (typeof ROLES)[number];
+
 interface UserProfile {
   uid: string;
   name: string;
@@ -18,10 +21,16 @@ interface UserProfile {
   isPublicContact: boolean;
   showPhoneNumber: boolean;
   showEmail: boolean;
-  role?: 'tenant' | 'landlord' | 'both' | 'agent';
+  role?: EcosystemRole;
   isPhoneVerified?: boolean;
   createdAt: any;
   updatedAt: any;
+  address?: string;
+  searchRadius?: string;
+  emailNotifications?: boolean;
+  smsNotifications?: boolean;
+  pushNotifications?: boolean;
+  managedBy?: string;
 }
 
 interface AuthContextType {
@@ -96,7 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            role: metadata.role as any,
            isPhoneVerified: !!metadata.isPhoneVerified,
            createdAt: session.user.created_at,
-           updatedAt: session.user.updated_at
+           updatedAt: session.user.updated_at,
+           address: metadata.address || '',
+           searchRadius: metadata.searchRadius || '15',
+           emailNotifications: metadata.emailNotifications ?? true,
+           smsNotifications: metadata.smsNotifications ?? false,
+           pushNotifications: metadata.pushNotifications ?? true,
+           managedBy: metadata.managedBy || metadata.managed_by || ''
         };
         setProfile(pseudoProfile);
         setLoading(false);

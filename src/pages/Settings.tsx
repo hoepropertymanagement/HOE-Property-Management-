@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLES, EcosystemRole } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar, { useSidebarCollapse } from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
@@ -22,7 +22,7 @@ export default function Settings() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   // ... rest of the state ...
   const [formData, setFormData] = useState({
-    role: profile?.role || 'tenant' as 'tenant' | 'landlord' | 'both' | 'agent',
+    role: profile?.role || 'tenant' as EcosystemRole,
     contactNumber: profile?.contactNumber || '',
     address: profile?.address || '',
     searchRadius: profile?.searchRadius || '15',
@@ -33,7 +33,7 @@ export default function Settings() {
     confirmPassword: ''
   });
 
-  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com'];
+  const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
   const isAgentUser = (user?.email || profile?.email) && allowedAgentEmails.includes((user?.email || profile?.email || '').toLowerCase());
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -186,7 +186,7 @@ export default function Settings() {
                           Select your primary function within the ecosystem. This determines your dashboard views and available features.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                          {['tenant', 'landlord', 'agent', 'both'].filter((r) => r !== 'agent' || isAgentUser).map((role) => (
+                          {ROLES.filter((r) => r !== 'agent' || isAgentUser).map((role) => (
                             <button
                               key={role}
                               type="button"

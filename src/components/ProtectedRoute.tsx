@@ -6,12 +6,13 @@ import { Loader2 } from 'lucide-react';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireLandlord?: boolean;
+  requireTenant?: boolean;
   requireAgent?: boolean;
 }
 
 const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twighlightani113@gmail.com', 'twiglightani113@gmail.com', 'nkeface14@gmail.com'];
 
-export default function ProtectedRoute({ children, requireLandlord = false, requireAgent = false }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requireLandlord = false, requireTenant = false, requireAgent = false }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
@@ -29,7 +30,7 @@ export default function ProtectedRoute({ children, requireLandlord = false, requ
   }
 
   const userEmail = user?.email || profile?.email || '';
-  const isAgentUser = userEmail && allowedAgentEmails.includes(userEmail.toLowerCase());
+  const isAgentUser = (userEmail && allowedAgentEmails.includes(userEmail.toLowerCase())) || profile?.role === 'agent';
 
   if (requireAgent) {
     if (!isAgentUser) {
@@ -44,7 +45,11 @@ export default function ProtectedRoute({ children, requireLandlord = false, requ
     }
   }
 
-  if (requireLandlord && profile?.role !== 'landlord' && profile?.role !== 'both' && profile?.role !== 'agent') {
+  if (requireLandlord && profile?.role !== 'landlord' && profile?.role !== 'both' && !isAgentUser) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (requireTenant && profile?.role !== 'tenant' && profile?.role !== 'both' && !isAgentUser) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function TenantDashboard() {
   const { savedIds } = useSavedProperties();
@@ -28,7 +28,8 @@ export default function TenantDashboard() {
       }
       setLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'properties'));
+        const q = query(collection(db, 'properties'), where('status', 'in', ['Live', 'Let Agreed']));
+        const querySnapshot = await getDocs(q);
         const allProps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         const filtered = allProps.filter(p => savedIds.has(p.id));
         setSavedProperties(filtered);

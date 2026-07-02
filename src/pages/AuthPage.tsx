@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, EcosystemRole } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, CheckCircle2, Briefcase, Eye, EyeOff, Phone, ShieldCheck, Globe } from 'lucide-react';
 import { cn } from '../lib/utils';
 import OTPInput from '../components/OTPInput';
 import { auth } from '../lib/firebase';
@@ -24,7 +24,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [policyViolations, setPolicyViolations] = useState<{ notificationMessage: string }[]>([]);
   
-  const [role, setRole] = useState<'tenant' | 'landlord' | 'both' | 'agent' | null>(null);
+  const [role, setRole] = useState<EcosystemRole | null>(null);
   const [signupStep, setSignupStep] = useState(0); // 0 for role selection, 1 for details
   const [authStep, setAuthStep] = useState<'credentials' | 'verify-email' | 'verify-phone'>('credentials');
   
@@ -336,8 +336,9 @@ export default function AuthPage() {
     const isAgentUser = email && allowedAgentEmails.includes(email.toLowerCase().trim());
 
     const items = [
-      { id: 'landlord', label: 'Landlord Portal', icon: Briefcase, desc: 'Manage and list properties' },
       { id: 'tenant', label: 'Tenant Portal', icon: User, desc: 'Browse and save properties' },
+      { id: 'landlord', label: 'Landlord Portal', icon: Briefcase, desc: 'Manage and list properties' },
+      { id: 'both', label: 'Dual Access Portal', icon: Globe, desc: 'Access both tenant and landlord portals' },
       ...(isAgentUser ? [{ id: 'agent', label: 'Agent Portal', icon: ShieldCheck, desc: 'Manage client portfolios' }] : [])
     ];
 
