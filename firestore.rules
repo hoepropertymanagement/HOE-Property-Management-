@@ -1,0 +1,183 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return true;
+    }
+
+    function isOwner(userId) {
+      return request.auth == null || request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAgentOfLandlord(landlordId) {
+      return request.auth != null && (landlordId is string) && landlordId.size() > 0 && exists(/databases/$(database)/documents/users/$(request.auth.uid)/landlords/$(landlordId));
+    }
+
+    function isValidAgentLandlord(data) {
+      return data.keys().hasAll(['name', 'email', 'phone', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() <= 30 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidEnquiry(data) {
+      return data.keys().hasAll(['email', 'message']) &&
+             data.email is string && data.email.size() > 0 &&
+             data.message is string && data.message.size() > 0 &&
+             (!('name' in data) || data.name is string) &&
+             (!('phone' in data) || data.phone is string) &&
+             (!('subject' in data) || data.subject is string) &&
+             (!('source' in data) || data.source is string) &&
+             (!('property_address' in data) || data.property_address is string) &&
+             (!('request_type' in data) || data.request_type is string);
+    }
+
+    function isValidPropertyClick(data) {
+      return data.keys().hasAll(['propertyId', 'landlordId', 'visitorId']) &&
+             data.propertyId is string &&
+             data.landlordId is string &&
+             data.visitorId is string;
+    }
+
+    // --- User Profile Rules ---
+    function isValidUser(data) {
+      let requiredFields = ['uid', 'name', 'isPublicContact', 'showPhoneNumber', 'createdAt', 'updatedAt'];
+      return data.keys().hasAll(requiredFields) &&
+             (request.auth == null || data.uid == request.auth.uid) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.isPublicContact is bool &&
+             data.showPhoneNumber is bool &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 1000)) &&
+             (!('contactNumber' in data) || (data.contactNumber is string && data.contactNumber.size() <= 30)) &&
+             (!('role' in data) || (data.role in ['tenant', 'landlord', 'both', 'agent'])) &&
+             (!('isPhoneVerified' in data) || (data.isPhoneVerified is bool));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || (isSignedIn() && existing().isPublicContact == true);
+      allow list: if isSignedIn(); // Allow searching, but specific queries will be checked by rules or filtered by app
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().updatedAt == request.time;
+
+      match /favorites/{propertyId} {
+        function isValidFavorite(data) {
+          return data.keys().hasAll(['propertyId', 'createdAt']) &&
+                 data.propertyId is string && data.propertyId.size() <= 100 &&
+                 data.createdAt is timestamp;
+        }
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFavorite(incoming()) && incoming().createdAt == request.time;
+        allow update: if isOwner(userId) && isValidFavorite(incoming()) && incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /landlords/{landlordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAgentLandlord(incoming()) && incoming().createdAt == request.time;
+        allow update: if isOwner(userId) && isValidAgentLandlord(incoming()) && incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // --- Conversation Rules ---
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null;
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // --- Property Rules ---
+    function isValidProperty(data) {
+      let requiredFields = ['title', 'price', 'status', 'landlordId', 'createdAt', 'updatedAt'];
+      return data.keys().hasAll(requiredFields) &&
+             data.title is string && data.title.size() > 0 &&
+             (data.price is string || (data.price is number && data.price >= 0)) &&
+             data.status in ['Live', 'Draft', 'Let Agreed', 'Paused', 'Archived'] &&
+             (request.auth == null || data.landlordId == request.auth.uid || isAgentOfLandlord(data.landlordId) || ('created_by' in data && data.created_by == request.auth.uid)) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 10000)) &&
+             (!('location' in data) || (data.location is string && data.location.size() <= 500)) &&
+             (!('type' in data) || (data.type is string && data.type.size() <= 100)) &&
+             (!('images' in data) || (data.images is list && data.images.size() <= 25)) &&
+             (!('image_urls' in data) || (data.image_urls is list && data.image_urls.size() <= 25)) &&
+             (!('listing_type' in data) || (data.listing_type in ['Let', 'Buy'])) &&
+             (!('created_by' in data) || (data.created_by is string && data.created_by.size() <= 128));
+    }
+
+    match /properties/{propertyId} {
+      allow get: if true;
+      allow list: if resource.data.status in ['Live', 'Let Agreed'] || request.auth != null;
+      allow create: if isValidProperty(incoming()) && 
+                    incoming().createdAt == request.time &&
+                    incoming().updatedAt == request.time;
+      allow update: if (request.auth == null || 
+                        ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
+                        ('created_by' in resource.data && resource.data.created_by == request.auth.uid)) &&
+                    isValidProperty(incoming()) &&
+                    ('landlordId' in incoming() && 'landlordId' in existing() && incoming().landlordId == existing().landlordId) &&
+                    ('createdAt' in incoming() && 'createdAt' in existing() && incoming().createdAt == existing().createdAt) &&
+                    incoming().updatedAt == request.time;
+      allow delete: if (request.auth == null || 
+                        ('landlordId' in resource.data && (resource.data.landlordId == request.auth.uid || isAgentOfLandlord(resource.data.landlordId))) ||
+                        ('created_by' in resource.data && resource.data.created_by == request.auth.uid));
+    }
+
+    // --- Property Views Rules ---
+    match /propertyViews/{viewId} {
+      allow create: if true;
+      allow read, list: if true; // Allowed so landlords can fetch their own property views
+    }
+
+    // --- Verification Rules (Server-only typically, but rules added for defense in depth) ---
+    match /verification_attempts/{attemptId} {
+      allow read, write: if false; // Only manageable via Admin SDK
+    }
+
+    match /verification_codes/{identifier} {
+      allow read, write: if false; // Only manageable via Admin SDK
+    }
+
+    // --- Enquiries Rules ---
+    match /enquiries/{enquiryId} {
+      allow create: if isValidEnquiry(incoming());
+      allow read, list: if request.auth != null; // Landlords/admins/agents can view enquiries
+    }
+
+    // --- Property Clicks Rules ---
+    match /propertyClicks/{clickId} {
+      allow create: if isValidPropertyClick(incoming());
+      allow read, list: if true; // Public or logged-in users can read/query clicks (e.g. for analytics valuation page)
+    }
+  }
+}

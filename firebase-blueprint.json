@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with privacy settings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique identifier for the user." },
+        "name": { "type": "string", "description": "Display name." },
+        "photoURL": { "type": "string", "description": "Profile photo URL." },
+        "bio": { "type": "string", "description": "User biography." },
+        "contactNumber": { "type": "string", "description": "Contact phone number." },
+        "isPublicContact": { "type": "boolean", "description": "Privacy toggle for contact info." },
+        "showPhoneNumber": { "type": "boolean", "description": "Privacy toggle for phone number." },
+        "role": { "type": "string", "enum": ["tenant", "landlord"], "description": "User role." },
+        "isPhoneVerified": { "type": "boolean", "description": "Landlord phone verification status." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "isPublicContact", "showPhoneNumber"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "A saved property by a user.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Metadata for a chat between two users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" }, "description": "UIDs of the participants." },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "propertyId": { "type": "string", "description": "The property this conversation is about." },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participantIds", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An individual message in a conversation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "A real estate listing.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "price": { "type": "string", "description": "Formatted price display (e.g. £1,250 pcm) or numeric value." },
+        "location": { "type": "string" },
+        "bedrooms": { "type": "number" },
+        "bathrooms": { "type": "number" },
+        "type": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "image_urls": { "type": "array", "items": { "type": "string" }, "description": "Array of public Supabase/Firebase image URLs used in the carousel" },
+        "listing_type": { "type": "string", "enum": ["Let", "Buy"], "description": "The type of transaction this property is listed for (Let = For Let, Buy = For Sale)" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Live", "Draft", "Let Agreed", "Paused", "Archived"] },
+        "landlordId": { "type": "string" },
+        "created_by": { "type": "string", "description": "UID of the agent/creator of this property" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "price", "status", "landlordId"]
+    },
+    "AgentLandlord": {
+      "title": "AgentLandlord",
+      "description": "A landlord client managed by an agent.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "phone"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "An enquiry submitted by a user or guest.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "source": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["email", "message"]
+    },
+    "PropertyClick": {
+      "title": "PropertyClick",
+      "description": "A property card click event with metadata.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "landlordId": { "type": "string" },
+        "visitorId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["propertyId", "landlordId", "visitorId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    },
+    "/users/{userId}/favorites/{propertyId}": {
+      "schema": "Favorite",
+      "description": "Stores user favorite properties."
+    },
+    "/users/{userId}/landlords/{landlordId}": {
+      "schema": "AgentLandlord",
+      "description": "Stores landlord rosters managed by this agent."
+    },
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Stores property listings."
+    },
+    "/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Stores conversation metadata."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Stores messages within a conversation."
+    },
+    "/verification_attempts/{attemptId}": {
+      "schema": {
+        "title": "VerificationAttempt",
+        "type": "object",
+        "properties": {
+          "identifier": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Rate limiting for verification emails."
+    },
+    "/verification_codes/{identifier}": {
+      "schema": {
+        "title": "VerificationCode",
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Stores active verification codes."
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": "Enquiry",
+      "description": "Stores submitted property/contact enquiries."
+    },
+    "/propertyClicks/{clickId}": {
+      "schema": "PropertyClick",
+      "description": "Stores property click event logs."
+    }
+  }
+}
