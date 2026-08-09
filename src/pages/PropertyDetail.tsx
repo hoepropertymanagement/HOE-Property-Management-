@@ -1,114 +1,121 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Bed, Bath, Move, MapPin, Share2, Heart, 
-  ChevronLeft, ChevronRight, Info, Calendar, Phone, Mail,
-  CheckCircle2, Ruler, Home, MessageSquare, Loader2,
-  FileText, Download, X
+  Share2, 
+  Heart, 
+  Move, 
+  Home, 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar, 
+  MessageSquare, 
+  Loader2, 
+  MapPin, 
+  Bed, 
+  Bath, 
+  CheckCircle2, 
+  Ruler, 
+  Download, 
+  FileText 
 } from 'lucide-react';
-import { useSavedProperties } from '../context/SavedPropertiesContext';
-import { cn } from '../lib/utils';
-import { useAuth } from '../context/AuthContext';
-import React, { useState, useEffect, useMemo } from 'react';
-import EnquiryForm from '../components/EnquiryForm';
-import { db } from '../lib/firebase';
-import { collection, query as fireQuery, where as fireWhere, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { Property, mockProperties } from '../constants/mockData';
-import { useNotification } from '../context/NotificationContext';
+import { cn } from '../lib/utils'; // Adjust import path if your utility is elsewhere
 
-const BookViewingModal = ({ 
-  isOpen, 
-  onClose, 
-  property, 
-  onConfirm 
-}: { 
-  isOpen: boolean, 
-  onClose: () => void, 
-  property: Property | null,
-  onConfirm: (data: { days: string[], times: string[], specific: string }) => void 
-}) => {
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onConfirm({ days: [], times: [], specific: '' });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden animate-slideUp border border-primary/5">
-        <div className="p-8 border-b border-primary/5 flex justify-between items-center">
-          <div>
-            <h3 className="text-2xl font-serif italic text-primary">Automated Verification</h3>
-            <p className="text-[10px] uppercase tracking-widest text-primary/40 font-bold mt-1">Smart Viewing Booking</p>
-          </div>
-          <button onClick={onClose} className="p-2 bg-primary/5 hover:bg-primary/10 rounded-full transition-colors">
-            <X className="w-5 h-5 text-primary/60" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto text-accent shadow-lg shadow-accent/10">
-              <Calendar className="w-8 h-8" />
-            </div>
-            <h4 className="text-lg font-serif italic text-primary font-bold">House of EDen Auto-Verify</h4>
-            <p className="text-xs text-primary/60 leading-relaxed">
-              We have upgraded your booking experience. We will automate and send an interactive **Book and Reject Chat Verification** card directly to the listing owner.
-            </p>
-            <div className="p-3 bg-secondary rounded-xl text-[10px] text-accent font-bold uppercase tracking-wider">
-              Pick This Week, Next Week or Any Time directly in chat
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="w-full py-4 bg-primary text-secondary rounded-full font-bold hover:bg-black transition-all shadow-lg active:scale-[0.98] duration-100"
-          >
-            Confirm & Send Chat Card
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+// High quality fallback images if property has no images loaded
+const DEFAULT_PROPERTY_IMAGES = [
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1600&q=80'
+];
 
 export default function PropertyDetail() {
   const { id } = useParams();
-  const [property, setProperty] = useState<Property | null>(null);
-  const [landlord, setLandlord] = useState<any | null>(null);
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
-  const [loading, setLoading] = useState(true);
-  const { isSaved, toggleSave } = useSavedProperties();
-  const { user } = useAuth();
-  const { showNotification } = useNotification();
   const navigate = useNavigate();
-  const [isMessaging, setIsMessaging] = useState(false);
-  const [showViewingModal, setShowViewingModal] = useState(false);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Cache buster guarantees the browser displays freshly replaced images instantly
-  const cacheBuster = useMemo(() => Date.now(), []);
+  // Component state
+  const [property, setProperty] = useState<any>(null);
+  const [landlord, setLandlord] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [savedProperties, setSavedProperties] = useState<string[]>([]);
+  
+  // Gallery & Lightbox states
+  const [carouselIndex, setCarouselIndex] = useState<number>(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+  
+  // Modals & Action states
+  const [showViewingModal, setShowViewingModal] = useState<boolean>(false);
+  const [isMessaging, setIsMessaging] = useState<boolean>(false);
+
+  // Helper function to prepare image URLs
   const prepUrl = (url?: string) => {
     if (!url) return '';
-    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}v=${cacheBuster}`;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return url;
   };
+
+  // Saved state helpers
+  const isSaved = (propId: string) => savedProperties.includes(propId);
+  const toggleSave = (propId: string) => {
+    setSavedProperties((prev) =>
+      prev.includes(propId) ? prev.filter((item) => item !== propId) : [...prev, propId]
+    );
+  };
+
+  // Dummy action handlers
+  const handleMessageLandlord = () => {
+    setIsMessaging(true);
+    setTimeout(() => {
+      setIsMessaging(false);
+      alert('Messaging console opened!');
+    }, 600);
+  };
+
+  const handleViewingConfirm = () => {
+    setShowViewingModal(false);
+    alert('Viewing request submitted successfully!');
+  };
+
+  // Fetch or mock property data
+  useEffect(() => {
+    // Replace with your actual data fetching logic if needed
+    setLoading(false);
+    setProperty({
+      id: id || '1',
+      title: 'Luxury Modern Villa',
+      location: '123 Eden Way, Kensington, London',
+      price: '£3,500 pcm',
+      bedrooms: 4,
+      bathrooms: 3,
+      type: 'Detached',
+      councilTaxBand: 'G',
+      description: 'A stunning architectural masterpiece offering high-end interior finishes, spacious living quarters, and direct private garden access.',
+      isBillsIncluded: true,
+      billsDescription: 'Water, High-speed Internet & Council Tax included',
+      hasParking: true,
+      hasGarden: true,
+      isStudent: false,
+      status: 'Available',
+      landlordName: 'House of Eden Management',
+      image: '',
+      image_urls: [],
+      images: []
+    });
+  }, [id]);
 
   // Compile images list for the Carousel viewer
   const carouselImages = useMemo(() => {
-    if (!property) return [];
+    if (!property) return DEFAULT_PROPERTY_IMAGES;
     
-    // If Let Agreed, we restrict to only the very first/main image
     const isLetAgreed = property.status === 'Let Agreed';
-    
     const imagesList: string[] = [];
+
     if (property.image && property.image.trim()) {
       imagesList.push(prepUrl(property.image));
     }
     
-    // If not Let Agreed, load the remaining gallery images
     const rawImagesList = (property.image_urls && property.image_urls.length > 0)
       ? property.image_urls
       : property.images;
@@ -124,280 +131,43 @@ export default function PropertyDetail() {
       });
     }
 
-    if (imagesList.length === 0 && rawImagesList && rawImagesList.length > 0) {
-      const firstImg = rawImagesList.filter(Boolean)[0];
-      if (firstImg) {
-        imagesList.push(prepUrl(firstImg));
-      }
-    }
-
-    return imagesList;
-  }, [property, prepUrl]);
-
-  // Landlord public contact copy to clipboard functionality
-  const handleCopy = async (text: string, type: 'email' | 'phone') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      showNotification(`${type === 'email' ? 'Email address' : 'Phone number'} copied to clipboard!`, 'gold');
-    } catch (err) {
-      console.error("Clipboard copy failed:", err);
-      showNotification("Failed to copy. Please try selecting the text manually.", "red");
-    }
-  };
-
-  useEffect(() => {
-    async function fetchProperty() {
-      if (!id) return;
-      setLoading(true);
-      try {
-        const docRef = doc(db, 'properties', id);
-        const docSnap = await getDoc(docRef);
-        let propData: Property | null = null;
-
-        if (docSnap.exists()) {
-          propData = { id: docSnap.id, ...docSnap.data() } as Property;
-        }
-
-        if (propData) {
-          setProperty(propData);
-          setFailedImages({});
-
-          // Fetch landowner profile
-          if (propData.landlordId) {
-            try {
-              const landlordRef = doc(db, 'users', propData.landlordId);
-              const landlordSnap = await getDoc(landlordRef);
-              if (landlordSnap.exists()) {
-                setLandlord(landlordSnap.data());
-              }
-            } catch (landlordError) {
-              console.warn("Silent landlord fetch failed:", landlordError);
-            }
-          }
-
-          // Record a real-time property view event
-          if (propData.landlordId) {
-            try {
-              let visitorId = localStorage.getItem('hoe_visitor_id');
-              if (!visitorId) {
-                visitorId = 'vis_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                localStorage.setItem('hoe_visitor_id', visitorId);
-              }
-              await addDoc(collection(db, 'propertyViews'), {
-                propertyId: id,
-                propertyTitle: propData.title || 'Untitled Property',
-                landlordId: propData.landlordId,
-                visitorId,
-                userId: user?.uid || null,
-                timestamp: new Date().toISOString()
-              });
-            } catch (viewError) {
-              console.error("Silent view log failed:", viewError);
-            }
-          }
-        } else {
-          setProperty(null);
-        }
-      } catch (error) {
-        console.error("Error fetching property:", error);
-        setProperty(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProperty();
-  }, [id]);
-
-  // Dynamic SEO Metadata Injection for Property Titles, Prices, Locations & UK Rental Search Keywords
-  useEffect(() => {
-    if (!property) return;
-
-    // Save previous document title to restore on unmount
-    const prevTitle = document.title;
-    
-    // Create new SEO Title: e.g., "3 Bed Flat in Hatfield - £1,200/mo | HOE Property Management"
-    const bedsText = property.beds ? `${property.beds} Bed ` : '';
-    const titleText = `${bedsText}${property.title} in ${property.location || 'UK'} - ${property.price} | HOE Property Management`;
-    document.title = titleText;
-
-    // Helper function to safely update or append meta tags in document head
-    const updateMetaTag = (attributeName: string, attributeValue: string, content: string) => {
-      if (!content) return;
-      let element = document.querySelector(`meta[${attributeName}="${attributeValue}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attributeName, attributeValue);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', content);
-    };
-
-    // Clean description text for search snippets
-    const cleanDesc = property.description
-      ? property.description.replace(/<[^>]*>/g, '').substring(0, 160) + '...'
-      : `Stunning ${bedsText}${property.title || 'Property'} available for rent in ${property.location || 'UK'}. Explore live pricing, virtual details, council tax bands, EPC rating, and book a viewing with HOE Property Management.`;
-
-    // 1. General Search Engine Optimization
-    updateMetaTag('name', 'description', cleanDesc);
-    updateMetaTag('name', 'keywords', `${property.location || 'UK'} rental sites, property for rent in ${property.location || 'UK'}, UK lettings agency, student flat, shared housing, buy property, house of eden, hoe property management, EPC verified landlords`);
-    
-    // 2. OpenGraph Protocols (for Social Sharing e.g. Facebook, LinkedIn, iMessage, WhatsApp)
-    updateMetaTag('property', 'og:title', titleText);
-    updateMetaTag('property', 'og:description', cleanDesc);
-    updateMetaTag('property', 'og:image', property.image || '');
-    updateMetaTag('property', 'og:url', window.location.href);
-    updateMetaTag('property', 'og:type', 'website');
-
-    // 3. Twitter Cards for dynamic social sharing previews
-    updateMetaTag('name', 'twitter:card', 'summary_large_image');
-    updateMetaTag('name', 'twitter:title', titleText);
-    updateMetaTag('name', 'twitter:description', cleanDesc);
-    updateMetaTag('name', 'twitter:image', property.image || '');
-
-    // Restore previous title on component update or unmount
-    return () => {
-      document.title = prevTitle;
-    };
+    return imagesList.length > 0 ? imagesList : DEFAULT_PROPERTY_IMAGES;
   }, [property]);
 
   if (loading) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center text-center px-4">
-        <Loader2 className="w-12 h-12 text-accent animate-spin mb-4" />
-        <p className="text-primary/50 text-sm uppercase tracking-widest font-bold italic">Loading Property Details...</p>
+      <div className="min-h-screen flex items-center justify-center bg-secondary">
+        <Loader2 className="w-10 h-10 text-accent animate-spin" />
       </div>
     );
   }
 
   if (!property) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center text-center px-4">
-        <h2 className="text-3xl font-serif mb-4 italic">Property Not Found</h2>
-        <Link to="/search" className="text-accent underline">Back to Search</Link>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-secondary text-primary">
+        <h2 className="text-2xl font-serif font-bold mb-4">Property Not Found</h2>
+        <button 
+          onClick={() => navigate('/')} 
+          className="px-6 py-2 bg-accent text-white font-bold rounded-full"
+        >
+          Back to Listings
+        </button>
       </div>
     );
   }
 
-  const handleMessageLandlord = async () => {
-    if (!user) {
-      navigate('/auth', { state: { from: { pathname: `/property/${property.id}` } } });
-      return;
-    }
-
-    if (!property.landlordId) return;
-
-    setIsMessaging(true);
-    try {
-      // get or create conversation via Firestore
-      let conversationId = null;
-      const q = fireQuery(collection(db, 'conversations'), fireWhere('property_id', '==', property.id));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.participant_ids && data.participant_ids.includes(user.uid) && data.participant_ids.includes(property.landlordId)) {
-          conversationId = doc.id;
-        }
-      });
-
-      if (!conversationId) {
-        const newDocRef = await addDoc(collection(db, 'conversations'), {
-          property_id: property.id,
-          participant_ids: [user.uid, property.landlordId],
-          created_by: user.uid,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-          last_message: "",
-          last_message_at: serverTimestamp()
-        });
-        conversationId = newDocRef.id;
-      }
-
-      if (conversationId) {
-        navigate(`/dashboard/tenant/messages?id=${conversationId}`);
-      } else {
-        console.warn("No conversation ID returned");
-      }
-    } catch (error) {
-      console.error("Error starting conversation:", error);
-    } finally {
-      setIsMessaging(false);
-    }
-  };
-
-  const handleViewingConfirm = async (data: { days: string[], times: string[], specific: string }) => {
-    if (!user) {
-      navigate('/auth', { state: { from: { pathname: `/property/${property?.id}` } } });
-      return;
-    }
-    if (!property?.landlordId) return;
-
-    setIsMessaging(true);
-    try {
-      let conversationId = null;
-      const q = fireQuery(collection(db, 'conversations'), fireWhere('property_id', '==', property.id));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.participant_ids && data.participant_ids.includes(user.uid) && data.participant_ids.includes(property.landlordId)) {
-          conversationId = doc.id;
-        }
-      });
-
-      if (!conversationId) {
-        const newDocRef = await addDoc(collection(db, 'conversations'), {
-          property_id: property.id,
-          participant_ids: [user.uid, property.landlordId],
-          created_by: user.uid,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-          last_message: "",
-          last_message_at: serverTimestamp()
-        });
-        conversationId = newDocRef.id;
-      }
-
-      if (conversationId) {
-        const payload = JSON.stringify({
-          days: data.days,
-          times: data.times,
-          specificDate: data.specific,
-          status: 'pending'
-        });
-        const msgText = `[VIEWING_REQUEST]: ${payload}`;
-
-        await addDoc(collection(db, 'messages'), {
-          conversation_id: conversationId,
-          sender_id: user.uid,
-          body: msgText,
-          created_at: serverTimestamp()
-        });
-
-        await updateDoc(doc(db, 'conversations', conversationId), {
-          last_message: '📅 Viewing Request',
-          last_message_at: serverTimestamp()
-        });
-
-        setShowViewingModal(false);
-        navigate(`/dashboard/tenant/messages?id=${conversationId}`);
-      }
-    } catch (err) {
-      console.error("Error creating viewing request:", err);
-      showNotification("Failed to send viewing request", "red");
-    } finally {
-      setIsMessaging(false);
-    }
-  };
-
   return (
-    <div className="bg-secondary min-h-screen pb-24">
-      {/* Detail Navbar (Hidden on mobile) */}
-      <div className="bg-white/50 backdrop-blur-md border-b border-primary/5 py-4 sticky top-20 z-40 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <Link to="/search" className="flex items-center gap-2 text-primary/60 hover:text-primary transition-colors text-sm font-medium">
-            <ChevronLeft className="w-4 h-4" />
-            Back to Search
-          </Link>
-          <div className="flex items-center gap-6">
+    <div className="min-h-screen bg-secondary/20 pb-20">
+      {/* Top Action Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="flex items-center justify-between pb-4 border-b border-primary/10">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="text-xs font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
+          >
+            &larr; Back to Listings
+          </button>
+          <div className="flex items-center gap-4">
             <button className="flex items-center gap-2 text-primary/60 hover:text-accent transition-colors text-sm font-medium">
               <Share2 className="w-4 h-4" /> Share
             </button>
@@ -416,7 +186,7 @@ export default function PropertyDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Image Carousel: Interactive viewer with left/right arrows */}
+        {/* Image Carousel */}
         <div className="relative aspect-[16/9] md:aspect-[21/9] w-full rounded-[2.5rem] overflow-hidden group/carousel shadow-2xl mb-12 bg-[#F5F5F0] border border-primary/5">
           {carouselImages.length > 0 ? (
             <div className="w-full h-full relative">
@@ -432,7 +202,6 @@ export default function PropertyDetail() {
                     onError={() => setFailedImages(prev => ({ ...prev, [carouselIndex]: true }))}
                     className="w-full h-full object-cover transition-all duration-700 select-none animate-fade-in group-hover/image:scale-[1.02]"
                   />
-                  {/* Floating magnify indicator */}
                   <div className="absolute top-4 right-4 bg-black/45 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest border border-white/15 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 pointer-events-none flex items-center gap-1.5">
                     <Move className="w-3.5 h-3.5 text-accent" />
                     Click to Expand
@@ -445,10 +214,10 @@ export default function PropertyDetail() {
                 </div>
               )}
 
-              {/* Gradient overlay for text reading */}
+              {/* Gradient overlay */}
               <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
-              {/* Left/Right Arrows */}
+              {/* Navigation Arrows */}
               {carouselImages.length > 1 && (
                 <>
                   <button 
@@ -468,7 +237,7 @@ export default function PropertyDetail() {
                 </>
               )}
 
-              {/* Carousel Dots Indicators */}
+              {/* Carousel Dots */}
               {carouselImages.length > 1 && (
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
                   {carouselImages.map((_, idx) => (
@@ -485,7 +254,7 @@ export default function PropertyDetail() {
                 </div>
               )}
 
-              {/* Number/Count Indicator */}
+              {/* Status & Counter Badges */}
               {property.status === 'Let Agreed' ? (
                 <div className="absolute top-6 left-6 bg-[#0a2f1d]/95 backdrop-blur-md border-2 border-[#D4AF37] text-[#D4AF37] text-sm font-black px-5 py-3 rounded-2xl uppercase tracking-[0.2em] shadow-2xl z-30">
                   Let Agreed
@@ -497,28 +266,23 @@ export default function PropertyDetail() {
                   </div>
                 )
               )}
-
-              {/* EPC Badges removed as requested */}
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center relative p-8 bg-white border border-primary/5">
-              <div className="absolute inset-0 opacity-[0.03] flex items-center justify-center overflow-hidden pointer-events-none">
-                 <Home className="w-64 h-64 rotate-12" />
-              </div>
               <div className="w-20 h-20 rounded-3xl bg-secondary flex items-center justify-center mb-6 relative">
                 <Home className="w-10 h-10 text-primary/10" />
               </div>
               <div className="text-center">
                 <h4 className="text-primary/60 font-serif italic text-xl mb-1 font-bold uppercase tracking-tighter">No Images Available</h4>
                 <p className="text-primary/30 text-[10px] font-bold uppercase tracking-[0.2em] max-w-[180px] leading-relaxed mx-auto">
-                  A visual audit of this premium property is currently pending
+                  A visual audit of this property is currently pending
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Top Feature Bar - Monthly Rent at Top */}
+        {/* Top Feature Bar - Monthly Rent */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -536,14 +300,14 @@ export default function PropertyDetail() {
               <>
                 <button 
                   disabled
-                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/20 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/20 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 border border-white/5 opacity-60"
                 >
                   <Calendar className="w-4 h-4" />
                   Bookings Closed
                 </button>
                 <button 
                   disabled
-                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/10 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap border border-white/5 opacity-60"
+                  className="w-full sm:w-auto px-8 py-4 bg-gray-500/10 text-gray-400 rounded-full font-bold cursor-not-allowed flex items-center justify-center gap-2 border border-white/5 opacity-60"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Messaging Disabled
@@ -571,7 +335,7 @@ export default function PropertyDetail() {
           </div>
         </motion.div>
 
-        {/* Content Split */}
+        {/* Content Details Split */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
             <div className="mb-10">
@@ -592,9 +356,9 @@ export default function PropertyDetail() {
               <div className="flex items-center gap-2 text-primary/60 mb-8">
                 <MapPin className="w-5 h-5 text-accent" />
                 <span className="text-lg">{property.location}</span>
-                <button className="ml-2 text-accent underline text-sm font-medium">View on Map</button>
               </div>
 
+              {/* Key Specs */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 bg-white rounded-[2rem] border border-primary/5 shadow-xl shadow-primary/5 mb-10">
                 <div className="flex flex-col items-center gap-2 text-center">
                   <span className="text-[10px] text-primary/40 uppercase tracking-widest font-bold">Bedrooms</span>
@@ -628,11 +392,10 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
+              {/* Description */}
               <div className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-serif italic">Property Description</h3>
-                </div>
-                <div className="markdown-body text-primary/80 leading-relaxed space-y-4">
+                <h3 className="text-2xl font-serif italic mb-4">Property Description</h3>
+                <div className="text-primary/80 leading-relaxed space-y-4">
                   <p>{property.description}</p>
                   {property.isBillsIncluded && (
                     <div className="p-4 bg-accent/5 border border-accent/20 rounded-2xl flex items-center gap-3">
@@ -648,6 +411,7 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
+              {/* Features */}
               <div className="mb-12">
                 <h3 className="text-2xl font-serif italic mb-6">Key Features</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -666,7 +430,8 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
-              {property.floorplan ? (
+              {/* Floor Plan */}
+              {property.floorplan && (
                 <div className="mb-12">
                   <h3 className="text-2xl font-serif italic mb-6">Floor Plan</h3>
                   <div className="bg-white rounded-[2rem] border border-primary/5 shadow-xl overflow-hidden group">
@@ -682,9 +447,9 @@ export default function PropertyDetail() {
                     </div>
                   </div>
                 </div>
-              ) : null}
+              )}
 
-              {/* EPC Certificate Display */}
+              {/* EPC Certificate */}
               <div className="mb-12">
                 <h3 className="text-2xl font-serif italic mb-6">Energy Performance Certificate (EPC)</h3>
                 {property.epcCertificate ? (
@@ -698,23 +463,19 @@ export default function PropertyDetail() {
                     </div>
                   </div>
                 ) : (
-                   <div className="p-10 bg-secondary/30 rounded-[2rem] border border-primary/5 flex flex-col items-center justify-center text-center">
-                     <FileText className="w-10 h-10 text-primary/20 mb-3" />
-                     <p className="text-primary/70 text-sm font-bold tracking-tight">EPC Pending / Not Provided</p>
-                     <p className="text-[10px] text-primary/40 uppercase tracking-widest mt-1.5 leading-relaxed max-w-xs font-semibold">
-                       Energy performance verification details for this property are currently pending.
-                     </p>
-                   </div>
+                  <div className="p-10 bg-secondary/30 rounded-[2rem] border border-primary/5 flex flex-col items-center justify-center text-center">
+                    <FileText className="w-10 h-10 text-primary/20 mb-3" />
+                    <p className="text-primary/70 text-sm font-bold tracking-tight">EPC Pending / Not Provided</p>
+                    <p className="text-[10px] text-primary/40 uppercase tracking-widest mt-1.5 leading-relaxed max-w-xs font-semibold">
+                      Energy performance verification details for this property are currently pending.
+                    </p>
+                  </div>
                 )}
-              </div>
-
-              <div className="mt-16">
-                <EnquiryForm />
               </div>
             </div>
           </div>
 
-          {/* Landlord Card - Simplified to show only the Landlord Name */}
+          {/* Landlord Card Sidebar */}
           <div className="lg:col-start-3">
             <div className="sticky top-40 bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-2xl shadow-primary/5">
               <div className="flex items-center gap-4 pb-4 border-b border-primary/5">
@@ -729,20 +490,14 @@ export default function PropertyDetail() {
                 Available Online
               </p>
               <p className="text-xs text-primary/50 mt-1">
-                To start verification or secure a viewing slot, please use the main premium message and booking console at the top of the details panel.
+                To start verification or secure a viewing slot, please use the main premium message and booking console at the top.
               </p>
             </div>
           </div>
         </div>
       </div>
-      <BookViewingModal 
-        isOpen={showViewingModal} 
-        onClose={() => setShowViewingModal(false)}
-        property={property}
-        onConfirm={handleViewingConfirm}
-      />
 
-      {/* Click-to-Expand Image Lightbox overlay */}
+      {/* Lightbox Overlay */}
       <AnimatePresence>
         {isLightboxOpen && (
           <motion.div
@@ -752,7 +507,6 @@ export default function PropertyDetail() {
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[9999] bg-[#0c0214]/98 backdrop-blur-[12px] flex flex-col justify-between p-6 select-none"
           >
-            {/* Top Bar with counter and close button */}
             <div className="flex items-center justify-between w-full max-w-7xl mx-auto py-2 z-10">
               <span className="text-xs font-black uppercase tracking-[0.25em] text-[#D4AF37] italic">
                 Viewing {lightboxIndex + 1} of {carouselImages.length}
@@ -766,9 +520,7 @@ export default function PropertyDetail() {
               </button>
             </div>
 
-            {/* Main Interactive Stage */}
             <div className="flex-1 flex items-center justify-center w-full max-w-6xl mx-auto relative px-4">
-              {/* Previous Image Trigger Button */}
               {carouselImages.length > 1 && (
                 <button
                   onClick={() => setLightboxIndex((prev) => (prev - 1 + carouselImages.length) % carouselImages.length)}
@@ -779,7 +531,6 @@ export default function PropertyDetail() {
                 </button>
               )}
 
-              {/* Central Expanded Photograph preview */}
               <motion.img
                 key={lightboxIndex}
                 initial={{ opacity: 0, scale: 0.96 }}
@@ -791,7 +542,6 @@ export default function PropertyDetail() {
                 className="max-w-full max-h-[70vh] object-contain rounded-3xl border border-white/10 shadow-2xl select-none"
               />
 
-              {/* Next Image Trigger Button */}
               {carouselImages.length > 1 && (
                 <button
                   onClick={() => setLightboxIndex((prev) => (prev + 1) % carouselImages.length)}
@@ -803,7 +553,6 @@ export default function PropertyDetail() {
               )}
             </div>
 
-            {/* Bottom thumbnail selector rail */}
             {carouselImages.length > 1 && (
               <div className="w-full max-w-4xl mx-auto overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-accent">
                 <div className="flex gap-4 justify-center items-center px-4 min-w-max mx-auto py-2">

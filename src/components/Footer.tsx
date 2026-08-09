@@ -1,168 +1,232 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ShieldCheck, Award } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [logoError, setLogoError] = React.useState(false);
 
   return (
-    <footer className="bg-[#1a0b2e] text-[#e0e0e0] pt-24 pb-12 px-8 overflow-hidden relative border-t border-[#c299ff]">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-24">
+    <footer className="relative bg-[#0d0518] text-[#e5e7eb] pt-28 pb-16 px-6 md:px-12 overflow-hidden border-t border-[#d4af37]/20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+      {/* Background Ambient Lights & Gradients */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[1px] bg-gradient-to-r from-transparent via-[#d4af37]/50 to-transparent pointer-events-none" />
+      <div className="absolute -top-40 left-1/4 w-96 h-96 bg-[#8b5cf6]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 right-10 w-80 h-80 bg-[#d4af37]/5 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Main Links Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-12 mb-20">
           {/* Column 1: Explore */}
           <div className="space-y-6">
-            <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-8">Explore</h3>
-            <ul className="space-y-4">
-              <li><Link to="/search" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Search Properties <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
-              <li><Link to="/search?mode=Rent" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Lettings/Buy <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
-              <li><Link to="/dashboard/landlord/analytics" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Valuation <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
-              <li><Link to="/search?filter=student" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Student Living <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
-              <li><Link to="/fees" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors flex items-center gap-2 group">Services & Fees <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" /></Link></li>
+            <h3 className="text-[#d4af37] text-xs font-bold uppercase tracking-[0.35em] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+              Explore
+            </h3>
+            <ul className="space-y-3.5">
+              {[
+                { name: 'Search Properties', path: '/search' },
+                { name: 'Lettings / Buy', path: '/search?mode=Rent' },
+                { name: 'Valuation', path: '/dashboard/landlord/analytics' },
+                { name: 'Student Living', path: '/search?filter=student' },
+                { name: 'Services & Fees', path: '/fees' }
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link 
+                    to={link.path} 
+                    className="text-sm text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 group hover:translate-x-1"
+                  >
+                    <span>{link.name}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#d4af37] opacity-0 group-hover:opacity-100 transition-all -translate-y-0.5" />
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Column 2: Your Account */}
           <div className="space-y-6">
-            <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-8">Your Account</h3>
-            <ul className="space-y-4">
-              <li><Link to="/dashboard/tenant" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Tenant Dashboard</Link></li>
-              <li><Link to="/dashboard/landlord" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Landlord Dashboard</Link></li>
-              <li><Link to="/profile" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Profile Settings</Link></li>
-              <li><Link to="/dashboard/tenant/messages" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Inbox</Link></li>
+            <h3 className="text-[#d4af37] text-xs font-bold uppercase tracking-[0.35em] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+              Account
+            </h3>
+            <ul className="space-y-3.5">
+              {[
+                { name: 'Tenant Dashboard', path: '/dashboard/tenant' },
+                { name: 'Landlord Dashboard', path: '/dashboard/landlord' },
+                { name: 'Profile Settings', path: '/profile' },
+                { name: 'Inbox Messages', path: '/dashboard/tenant/messages' }
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link 
+                    to={link.path} 
+                    className="text-sm text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 group hover:translate-x-1"
+                  >
+                    <span>{link.name}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Column 3: Support */}
           <div className="space-y-6">
-            <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-8">Support</h3>
-            <ul className="space-y-4">
-              <li><Link to="/about" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">About Us</Link></li>
-              <li><Link to="/help" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Help / FAQs</Link></li>
-              <li><Link to="/contact" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Contact Us</Link></li>
+            <h3 className="text-[#d4af37] text-xs font-bold uppercase tracking-[0.35em] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+              Support
+            </h3>
+            <ul className="space-y-3.5">
+              {[
+                { name: 'About Us', path: '/about' },
+                { name: 'Help & FAQs', path: '/help' },
+                { name: 'Contact Us', path: '/contact' }
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link 
+                    to={link.path} 
+                    className="text-sm text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 group hover:translate-x-1"
+                  >
+                    <span>{link.name}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Column 4: Legal */}
           <div className="space-y-6">
-            <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-8">Legal</h3>
-            <ul className="space-y-4">
-              <li><Link to="/terms" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Terms & Conditions</Link></li>
-              <li><Link to="/privacy" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Privacy Policy</Link></li>
-              <li><Link to="/cookies" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Cookie Policy</Link></li>
-              <li><Link to="/compliance" className="text-sm text-secondary/60 hover:text-[#c299ff] transition-colors">Legal & Compliance</Link></li>
+            <h3 className="text-[#d4af37] text-xs font-bold uppercase tracking-[0.35em] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+              Legal
+            </h3>
+            <ul className="space-y-3.5">
+              {[
+                { name: 'Terms & Conditions', path: '/terms' },
+                { name: 'Privacy Policy', path: '/privacy' },
+                { name: 'Cookie Policy', path: '/cookies' },
+                { name: 'Legal & Compliance', path: '/compliance' }
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link 
+                    to={link.path} 
+                    className="text-sm text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 group hover:translate-x-1"
+                  >
+                    <span>{link.name}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
 
-        <div className="pt-12 border-t border-[#c299ff]/30 flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="text-center md:text-left flex-grow max-w-2xl space-y-3">
-            <p className="text-lg text-[#c299ff] font-serif italic">
-              House of Eden Community Project
-            </p>
-            
-            <p className="text-sm text-[#a3a3a3]">
-              London, United Kingdom | Contact:{' '}
-              <a 
-                href="mailto:admin@hoepropertymanagement.co.uk" 
-                className="text-[#b366ff] hover:text-[#c299ff] transition-all hover:underline"
+        {/* Bottom Detailed Info Panel */}
+        <div className="pt-12 border-t border-white/10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-12 bg-white/[0.02] p-8 md:p-10 rounded-2xl backdrop-blur-md border border-white/5 shadow-2xl">
+          
+          {/* Brand & Regulatory Information */}
+          <div className="space-y-4 max-w-2xl">
+            <div>
+              <p className="text-2xl text-white font-serif italic tracking-wide">
+                House of Eden <span className="text-[#d4af37] text-lg not-italic font-sans font-light">Community Project</span>
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                London, United Kingdom &nbsp;|&nbsp; Contact:{' '}
+                <a 
+                  href="mailto:admin@hoepropertymanagement.co.uk" 
+                  className="text-[#c299ff] hover:text-[#d4af37] transition-colors underline decoration-1 underline-offset-4"
+                >
+                  admin@hoepropertymanagement.co.uk
+                </a>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 text-gray-300 text-xs px-3 py-1 rounded-full backdrop-blur-sm">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#d4af37]" />
+                ICO Reg: <strong className="text-white font-mono font-medium">ZC154194</strong>
+              </span>
+              <Link 
+                to="/fees" 
+                className="inline-flex items-center gap-1.5 bg-[#d4af37]/10 hover:bg-[#d4af37]/20 border border-[#d4af37]/30 text-[#d4af37] text-xs px-3 py-1 rounded-full transition-all group"
               >
-                admin@hoepropertymanagement.co.uk
-              </a>
-            </p>
-            
-            <div className="w-[50px] h-[2px] bg-[#c299ff] opacity-50 my-4 mx-auto md:mx-0"></div>
-            
-            <p className="text-sm text-[#a3a3a3]">
-              Registered with the Information Commissioner's Office (ICO). Reference Number: <span className="font-mono bg-white/5 border border-white/15 px-2 py-0.5 rounded text-white text-xs">ZC154194</span>
-            </p>
-            
-            <div className="my-4">
-              <h3 className="text-[#c299ff] text-xs font-black uppercase tracking-[0.3em] mb-2">Services and Fees</h3>
-              <Link to="/fees" className="text-sm font-bold text-white hover:text-[#d4af37] transition-colors inline-flex items-center gap-2 group">
-                Professional Services & Fees
-                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all" />
+                <Award className="w-3.5 h-3.5" />
+                <span>Professional Services & Fees</span>
+                <ArrowUpRight className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </Link>
             </div>
-            
-            <p className="text-xs text-[#666666]">
+
+            <p className="text-[11px] text-gray-500 pt-2">
               &copy; {currentYear} House of Eden Community Project. All rights reserved.
             </p>
           </div>
 
-          {/* PRS Compliance Section */}
-          <div className="flex flex-col items-center md:items-end gap-3 text-center md:text-right shrink-0">
-            {/* Rent Guarantor Partner */}
-            <div className="flex flex-col items-center md:items-end gap-2 mb-4">
-              <p className="text-[#a3a3a3] text-[9px] font-bold uppercase tracking-widest mb-1">Partners With</p>
+          {/* Partner & Accreditation Badges */}
+          <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-6 border-t lg:border-t-0 lg:border-l border-white/10 pt-6 lg:pt-0 lg:pl-10 w-full lg:w-auto">
+            
+            {/* Rent Guarantor */}
+            <div className="flex items-center gap-3">
+              <div className="text-left lg:text-right">
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Official Partner</p>
+              </div>
               <a 
                 href="https://www.rentguarantor.com/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-block bg-white px-2 py-1.5 rounded shadow-md hover:bg-gray-50 transition-colors"
-                style={{ textDecoration: 'none' }}
+                className="bg-white/95 hover:bg-white px-3 py-1.5 rounded-lg shadow-lg hover:scale-105 transition-all duration-300"
               >
                 <img 
                   src="https://www.rentguarantor.com/images/rgv2/rg-logo.svg" 
                   alt="Rent Guarantor" 
-                  className="h-8 object-contain"
+                  className="h-7 object-contain"
                 />
               </a>
             </div>
 
-            <div className="flex flex-col items-center md:items-end gap-2">
+            {/* Property Redress Scheme */}
+            <div className="flex flex-col items-start lg:items-end gap-1.5">
               <a 
                 href="https://www.theprs.co.uk/" 
                 target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ display: 'inline-block', textDecoration: 'none' }}
+                rel="noopener noreferrer"
+                className="hover:opacity-100 transition-opacity"
               >
                 {!logoError ? (
                   <img 
                     src="property-redress-logo.jpeg" 
                     alt="Property Redress Scheme Member" 
-                    style={{ height: '40px', width: 'auto', cursor: 'pointer', opacity: 0.8, transition: 'opacity 0.3s ease' }}
+                    className="h-10 w-auto opacity-90 hover:opacity-100 transition-all rounded"
                     onError={() => setLogoError(true)}
                     referrerPolicy="no-referrer"
-                    className="hover:opacity-100 transition-opacity"
                   />
                 ) : (
                   <svg 
                     viewBox="0 0 320 100" 
-                    style={{ height: '40px', width: 'auto', cursor: 'pointer', opacity: 0.8 }} 
+                    className="h-10 w-auto opacity-90 hover:opacity-100 transition-all" 
                     fill="none" 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="hover:opacity-100 transition-opacity"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
                     <g>
-                      {/* Left: Slate grey angle, parallel to the purple pillars */}
                       <path d="M 8 85 L 48 15 L 56 15 L 16 85 Z" fill="#71717a" />
-                      {/* Purple pillar 1 */}
                       <rect x="22" y="38" width="13" height="47" rx="1.5" fill="#a855f7" />
-                      {/* Magenta/fuchsia pillar 2 */}
                       <rect x="42" y="15" width="13" height="70" rx="1.5" fill="#d946ef" />
                     </g>
-                    {/* Brand Texts matching the uploaded logo */}
-                    <text x="68" y="36" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="24" fontWeight="300" letterSpacing="0.02em">Property</text>
-                    <text x="68" y="67" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="28" fontWeight="800" letterSpacing="0.01em">Redress</text>
+                    <text x="68" y="36" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="24" fontWeight="300">Property</text>
+                    <text x="68" y="67" fill="#ffffff" fontFamily="Inter, sans-serif" fontSize="28" fontWeight="800">Redress</text>
                     <text x="68" y="88" fill="#d4af37" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="600" letterSpacing="0.18em">SCHEME</text>
                   </svg>
                 )}
               </a>
-              <div className="text-[11px] text-[#e0e0e0]/60 leading-relaxed font-sans mt-2 space-y-1">
-                <p>PRS Member ID: <strong className="text-accent">PRS058192</strong></p>
-                <p>Fully Insured by: <strong className="text-[#e0e0e0]/90">Simply Business</strong> | Policy: <strong className="text-[#e0e0e0]/70">CHBS5558206XB</strong></p>
+
+              <div className="text-[11px] text-gray-400 space-y-0.5 text-left lg:text-right font-mono">
+                <p>PRS ID: <strong className="text-[#d4af37]">PRS058192</strong></p>
+                <p className="text-[10px] text-gray-500 font-sans">Insured by Simply Business (#CHBS5558206XB)</p>
               </div>
             </div>
-            <p className="text-[9px] text-[#e0e0e0]/35 uppercase tracking-[0.3em] font-bold mt-1">
-              Independent Redress Provided
-            </p>
+
           </div>
         </div>
       </div>
 
-      {/* Background Text Accent */}
-      <div className="absolute -bottom-16 -left-16 text-[20vw] font-serif italic text-white/[0.02] pointer-events-none select-none">
+      {/* Decorative Large Background Typography */}
+      <div className="absolute -bottom-10 -left-10 text-[18vw] font-serif italic text-white/[0.015] pointer-events-none select-none leading-none">
         HOE
       </div>
     </footer>

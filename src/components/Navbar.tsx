@@ -1,7 +1,11 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { Link, useLocation } from 'react-router-dom';
-import { Search, User, Menu, X, LogOut, MessageSquare } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import LogoutModal from './LogoutModal';
@@ -12,7 +16,6 @@ export default function Navbar() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
-  const isSearchPage = location.pathname === '/search';
 
   const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twilightani113@gmail.com'];
   const isAgent = profile?.role === 'agent' || (user?.email && allowedAgentEmails.includes(user.email));
@@ -33,10 +36,11 @@ export default function Navbar() {
   const searchParams = new URLSearchParams(location.search);
   const mode = searchParams.get('mode');
 
-  const isHomeActive = location.pathname === '/';
-  const isRentActive = location.pathname === '/search' && (mode === 'Rent' || !mode);
+  const isHomeActive = location.pathname === '/home';
+  const isAuthActive = location.pathname === '/' || location.pathname === '/auth' || location.pathname === '/login';
+  const isRentActive = location.pathname === '/search' && mode === 'Rent';
   const isContactActive = location.pathname === '/contact';
-  const isDashboardActive = location.pathname.startsWith('/landlord') || location.pathname.startsWith('/dashboard');
+  const isDashboardActive = location.pathname.startsWith('/landlord') || location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/tenant');
 
   const getLinkClass = (isActive: boolean) => `
     transition-all duration-300 pb-1 md:text-[10px] lg:text-xs uppercase tracking-[0.2em]
@@ -57,7 +61,8 @@ export default function Navbar() {
           "flex justify-between items-center h-full"
         )}>
           <div className="flex items-center gap-6">
-            <Link to="/" className={cn(
+            {/* Logo directs to /home if logged in, otherwise /auth */}
+            <Link to={user ? "/home" : "/auth"} className={cn(
               "flex items-center gap-3 group transition-all duration-300",
               isMinimized ? "scale-90" : "scale-100"
             )}>
@@ -76,12 +81,20 @@ export default function Navbar() {
             </Link>
 
             <div className={cn(
-              "hidden md:flex items-center space-x-8 uppercase tracking-widest md:text-[9px] lg:text-[11px]",
-              isMinimized && isSearchPage ? "opacity-0 pointer-events-none" : "opacity-100"
+              "hidden md:flex items-center space-x-8 uppercase tracking-widest md:text-[9px] lg:text-[11px]"
             )}>
-              <Link to="/" className={getLinkClass(isHomeActive)}>Search</Link>
+              {/* Show SIGN IN / SIGN UP only when user is NOT logged in */}
+              {!user && (
+                <Link to="/auth" className={getLinkClass(isAuthActive)}>Sign In / Sign Up</Link>
+              )}
+
+              {/* SEARCH link ALWAYS points to /home (Hero Property Filter page) */}
+              <Link to="/home" className={getLinkClass(isHomeActive)}>Search</Link>
+              
               <Link to="/search?mode=Rent" className={getLinkClass(isRentActive)}>Lettings/Buy</Link>
               <Link to="/contact" className={getLinkClass(isContactActive)}>Contact</Link>
+              
+              {/* Dashboard link */}
               <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} className={getLinkClass(isDashboardActive)}>Dashboard</Link>
             </div>
           </div>
@@ -106,7 +119,7 @@ export default function Navbar() {
 
                 <button
                   onClick={() => setShowLogoutModal(true)}
-                  className="p-2 text-primary/60 hover:text-primary transition-colors"
+                  className="p-2 text-primary/60 hover:text-primary transition-colors cursor-pointer"
                   title="Log out"
                 >
                   <LogOut className="w-5 h-5" />
@@ -114,7 +127,7 @@ export default function Navbar() {
               </div>
             ) : (
               <Link
-                to="/login"
+                to="/auth"
                 className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground bg-primary rounded-md hover:bg-primary/90 transition-colors"
               >
                 Sign In
@@ -129,6 +142,19 @@ export default function Navbar() {
             </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {isOpen && (
+          <div className="md:hidden bg-secondary border-b border-primary/10 px-4 pt-2 pb-6 space-y-3">
+            {!user && (
+              <Link to="/auth" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Sign In / Sign Up</Link>
+            )}
+            <Link to="/home" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Search</Link>
+            <Link to="/search?mode=Rent" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Lettings/Buy</Link>
+            <Link to="/contact" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Contact</Link>
+            <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Dashboard</Link>
+          </div>
+        )}
       </nav>
 
       <LogoutModal

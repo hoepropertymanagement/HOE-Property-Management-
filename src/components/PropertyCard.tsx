@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Bed, Bath, Move, Heart, ChevronLeft, ChevronRight, Eye, Home, ShieldCheck, Share } from 'lucide-react';
+import { Bed, Bath, Heart, ChevronLeft, ChevronRight, Eye, Home, ShieldCheck, Share } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
 import type { Property } from '../constants/mockData';
@@ -10,12 +10,18 @@ import { useNotification } from '../context/NotificationContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
-
 interface PropertyCardProps {
   property: Property;
   onHover?: (id: string | null) => void;
   key?: string | number;
 }
+
+// Default high quality fallback images if property has missing/broken images
+const DEFAULT_CARD_IMAGES = [
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80',
+];
 
 export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const { isSaved, toggleSave } = useSavedProperties();
@@ -46,16 +52,13 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   const saved = isSaved(property.id);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
-  const totalImages = (property.image_urls && property.image_urls.length > 0)
-    ? property.image_urls.filter(Boolean).length
-    : (property.images ? property.images.filter(Boolean).length : 0);
 
   React.useEffect(() => {
     setCurrentImageIndex(0);
     setFailedImages({});
   }, [property.id]);
   
-  // Cache buster guarantees the browser displays freshly replaced images instantly
+  // Cache buster guarantees fresh images
   const cacheBuster = React.useMemo(() => Date.now(), []);
   const prepUrl = (url?: string) => {
     if (!url) return '';
@@ -65,20 +68,34 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
   };
 
   const isLetAgreed = property.status === 'Let Agreed' && !isLandlord;
-  // We want to show up to 3 real images, then a 4th "more" slide if there are 4+ images
+
+  // Process and aggregate property images with automatic fallback
   const displayImages = React.useMemo(() => {
     let list = (property.image_urls && property.image_urls.length > 0)
       ? [...property.image_urls]
       : (property.images ? [...property.images] : []);
+
     if (list.length === 0 && property.image) {
       list = [property.image];
     }
+
     const valid = list.filter(Boolean);
+
+    // If no valid images are provided in the property object, use default fallbacks
+    if (valid.length === 0) {
+      return DEFAULT_CARD_IMAGES;
+    }
+
     if (isLetAgreed) {
       return valid.slice(0, 1).map(img => prepUrl(img));
     }
+
     return valid.slice(0, 4).map(img => prepUrl(img));
   }, [property.images, property.image_urls, property.image, isLetAgreed, prepUrl]);
+
+  const totalImages = (property.image_urls && property.image_urls.length > 0)
+    ? property.image_urls.filter(Boolean).length
+    : (property.images ? property.images.filter(Boolean).length : (displayImages.length));
 
   const hasMoreImages = !isLetAgreed && totalImages > 3;
 
@@ -134,25 +151,22 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                   }
                 }}
               >
-                {displayImages[currentImageIndex] && !failedImages[currentImageIndex] ? (
-                  <>
-                    <img 
-                      src={displayImages[currentImageIndex]} 
-                      alt={property.title}
-                      onError={() => setFailedImages(prev => ({ ...prev, [currentImageIndex]: true }))}
-                      className={cn(
-                        "w-full h-full object-cover pointer-events-none transition-all duration-1000 group-hover:scale-105",
-                        currentImageIndex === 3 && hasMoreImages ? "blur-md opacity-70" : ""
-                      )}
-                    />
-                    
-                    {/* EPC Overlays removed as requested */}
-                  </>
+                {!failedImages[currentImageIndex] ? (
+                  <img 
+                    src={displayImages[currentImageIndex]} 
+                    alt={property.title || 'Property'}
+                    onError={() => setFailedImages(prev => ({ ...prev, [currentImageIndex]: true }))}
+                    className={cn(
+                      "w-full h-full object-cover pointer-events-none transition-all duration-1000 group-hover:scale-105",
+                      currentImageIndex === 3 && hasMoreImages ? "blur-md opacity-70" : ""
+                    )}
+                  />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-secondary">
-                    <Home className="w-12 h-12 text-primary/15 animate-pulse mb-2" />
-                    <span className="text-[9px] font-bold text-primary/30 uppercase tracking-[0.1em]">No Image</span>
-                  </div>
+                  <img 
+                    src={DEFAULT_CARD_IMAGES[0]} 
+                    alt="Property Fallback"
+                    className="w-full h-full object-cover pointer-events-none transition-all duration-1000 group-hover:scale-105"
+                  />
                 )}
                 
                 {/* See More Overlay for 4th indicator slide */}
@@ -180,10 +194,6 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                   <p className="text-primary/30 text-[9px] font-bold uppercase tracking-[0.2em] max-w-[140px] leading-relaxed mx-auto">
                     Visual audit in progress
                   </p>
-                </div>
-                <div className="mt-8 flex gap-2 items-center bg-primary/5 px-4 py-2 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50]"></div>
-                  <span className="text-[8px] font-bold text-primary/40 uppercase tracking-[0.3em]">Live Feed Pending</span>
                 </div>
               </div>
             )}
@@ -298,7 +308,6 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
                  </div>
                </div>
              )}
-
           </div>
           <div className="text-[9px] font-bold uppercase tracking-widest text-accent flex items-center gap-2">
             <ShieldCheck className="w-3 h-3" />

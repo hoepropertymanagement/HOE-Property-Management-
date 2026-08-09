@@ -29,7 +29,6 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      // Find whichever authentication function your AuthContext exposes
       const loginFn = 
         authContext?.signInWithPassword || 
         authContext?.signIn || 
@@ -62,10 +61,8 @@ export default function AuthPage() {
         }
       }
 
-      // Route directly to dashboard
       handleSuccessRedirect(role);
     } catch (err: any) {
-      // Even if Supabase throws a mock auth error during local testing, route to dashboard
       console.warn('Auth issue encountered, redirecting to dashboard:', err);
       handleSuccessRedirect(role);
     } finally {
@@ -74,30 +71,42 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-md">
+    <div 
+      className="min-h-screen relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=2560&q=100')`
+      }}
+    >
+      {/* Clearer, lighter overlay with no blur to keep the background sharp */}
+      <div className="absolute inset-0 bg-black/35"></div>
+
+      {/* Auth Card Container */}
+      <div className="relative z-10 max-w-md w-full space-y-8 bg-white/95 backdrop-blur-md p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/20">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-2 text-center text-3xl font-serif font-bold text-gray-900 tracking-tight">
             {isLogin ? 'Sign in to your account' : 'Create a new account'}
           </h2>
+          <p className="mt-2 text-center text-xs font-semibold tracking-widest text-amber-700 uppercase">
+            House of Eden Properties
+          </p>
         </div>
         
         {error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                 Account Type
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
               >
                 <option value="tenant">Tenant</option>
                 <option value="landlord">Landlord</option>
@@ -105,42 +114,51 @@ export default function AuthPage() {
               </select>
             </div>
 
-            <div className="mb-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                Email Address
+              </label>
               <input
                 type="email"
                 required
-                placeholder="Email address"
+                placeholder="name@domain.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md mb-2"
+                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                Password
+              </label>
               <input
                 type="password"
                 required
-                placeholder="Password"
+                placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
+                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
               />
             </div>
           </div>
 
-          <div>
+          <div className="pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+              className="w-full flex justify-center py-3.5 px-4 rounded-lg text-sm font-bold uppercase tracking-widest text-white bg-slate-900 hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all duration-200 shadow-lg cursor-pointer"
             >
               {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
             </button>
           </div>
         </form>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-6 pt-4 border-t border-gray-200/60">
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-indigo-600 hover:underline"
+            className="text-xs font-semibold text-slate-700 hover:text-amber-600 transition-colors cursor-pointer uppercase tracking-wider"
           >
             {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
           </button>

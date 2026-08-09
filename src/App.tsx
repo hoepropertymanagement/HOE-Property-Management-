@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import React, { Suspense, ReactNode, ErrorInfo, Component, useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { Suspense, useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import Home from './pages/Home';
 import SearchResults from './pages/SearchResults';
@@ -146,6 +146,72 @@ function ImpersonationBanner() {
   );
 }
 
+function MainLayout() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/' || location.pathname === '/auth';
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans">
+      {!isAuthPage && <Navbar />}
+      {!isAuthPage && <ImpersonationBanner />}
+      
+      <main className="flex-grow">
+        <ErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen bg-secondary flex items-center justify-center">Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<AuthPage />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/add-property" element={<AddProperty />} />
+              <Route path="/search" element={<SearchResults />} />
+              <Route path="/property/:id" element={<PropertyDetail />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/help" element={<HelpFAQ />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
+              <Route path="/compliance" element={<Compliance />} />
+              <Route path="/fees" element={<Fees />} />
+              
+              {/* Dashboard Routes */}
+              <Route path="/dashboard" element={<ProtectedRoute><DashboardGateway /></ProtectedRoute>} />
+              
+              {/* Landlord Routes */}
+              <Route path="/dashboard/landlord" element={<ProtectedRoute requireLandlord><LandlordDashboard /></ProtectedRoute>} />
+              <Route path="/dashboard/landlord/properties" element={<ProtectedRoute requireLandlord><ManageProperties /></ProtectedRoute>} />
+              <Route path="/dashboard/landlord/add" element={<ProtectedRoute requireLandlord><AddProperty /></ProtectedRoute>} />
+              <Route path="/dashboard/landlord/analytics" element={<ProtectedRoute requireLandlord><Valuation /></ProtectedRoute>} />
+              <Route path="/dashboard/landlord/messages" element={<ProtectedRoute requireLandlord><Messages type="landlord" /></ProtectedRoute>} />
+              <Route path="/dashboard/landlord/tenants" element={<ProtectedRoute requireLandlord><ManageTenants /></ProtectedRoute>} />
+              
+              {/* Tenant Routes */}
+              <Route path="/dashboard/tenant" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
+              <Route path="/dashboard/tenant/saved" element={<ProtectedRoute requireTenant><SavedPropertiesPage /></ProtectedRoute>} />
+              <Route path="/dashboard/tenant/messages" element={<ProtectedRoute requireTenant><Messages type="tenant" /></ProtectedRoute>} />
+              
+              {/* Agent Routes */}
+              <Route path="/dashboard/agent" element={<ProtectedRoute requireAgent><AgentDashboard tab="overview" /></ProtectedRoute>} />
+              <Route path="/dashboard/agent/landlords" element={<ProtectedRoute requireAgent><AgentDashboard tab="landlords" /></ProtectedRoute>} />
+              <Route path="/dashboard/agent/properties" element={<ProtectedRoute requireAgent><AgentDashboard tab="properties" /></ProtectedRoute>} />
+              <Route path="/dashboard/agent/messages" element={<ProtectedRoute requireAgent><Messages type="agent" /></ProtectedRoute>} />
+              
+              {/* Fallbacks */}
+              <Route path="/tenant/*" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
+              <Route path="/landlord/*" element={<ProtectedRoute requireLandlord><LandlordDashboard /></ProtectedRoute>} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </main>
+
+      {!isAuthPage && <Footer />}
+      {!isAuthPage && <CookieConsent />}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Router>
@@ -155,60 +221,7 @@ export default function App() {
         <RedirectListener />
         <AuthProvider>
           <SavedPropertiesProvider>
-            <div className="min-h-screen flex flex-col font-sans">
-              <Navbar />
-              <ImpersonationBanner />
-              <main className="flex-grow">
-                <ErrorBoundary>
-                  <Suspense fallback={<div className="min-h-screen bg-secondary flex items-center justify-center">Loading...</div>}>
-                    <Routes>
-                     <Route path="/add-property" element={<AddProperty />} />
-                      <Route path="/search" element={<SearchResults />} />
-                      <Route path="/property/:id" element={<PropertyDetail />} />
-                      <Route path="/auth" element={<AuthPage />} />
-                      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                      <Route path="/about" element={<AboutUs />} />
-                      <Route path="/help" element={<HelpFAQ />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/terms" element={<TermsAndConditions />} />
-                      <Route path="/privacy" element={<PrivacyPolicy />} />
-                      <Route path="/cookies" element={<CookiePolicy />} />
-                      <Route path="/compliance" element={<Compliance />} />
-                      <Route path="/fees" element={<Fees />} />
-                      
-                      {/* Dashboard Routes */}
-                      <Route path="/dashboard" element={<ProtectedRoute><DashboardGateway /></ProtectedRoute>} />
-                      
-                      {/* Landlord Routes */}
-                      <Route path="/dashboard/landlord" element={<ProtectedRoute requireLandlord><LandlordDashboard /></ProtectedRoute>} />
-                      <Route path="/dashboard/landlord/properties" element={<ProtectedRoute requireLandlord><ManageProperties /></ProtectedRoute>} />
-                      <Route path="/dashboard/landlord/add" element={<ProtectedRoute requireLandlord><AddProperty /></ProtectedRoute>} />
-                      <Route path="/dashboard/landlord/analytics" element={<ProtectedRoute requireLandlord><Valuation /></ProtectedRoute>} />
-                      <Route path="/dashboard/landlord/messages" element={<ProtectedRoute requireLandlord><Messages type="landlord" /></ProtectedRoute>} />
-                      <Route path="/dashboard/landlord/tenants" element={<ProtectedRoute requireLandlord><ManageTenants /></ProtectedRoute>} />
-                      
-                      {/* Tenant Routes */}
-                      <Route path="/dashboard/tenant" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
-                      <Route path="/dashboard/tenant/saved" element={<ProtectedRoute requireTenant><SavedPropertiesPage /></ProtectedRoute>} />
-                      <Route path="/dashboard/tenant/messages" element={<ProtectedRoute requireTenant><Messages type="tenant" /></ProtectedRoute>} />
-                      
-                      {/* Agent Routes */}
-                      <Route path="/dashboard/agent" element={<ProtectedRoute requireAgent><AgentDashboard tab="overview" /></ProtectedRoute>} />
-                      <Route path="/dashboard/agent/landlords" element={<ProtectedRoute requireAgent><AgentDashboard tab="landlords" /></ProtectedRoute>} />
-                      <Route path="/dashboard/agent/properties" element={<ProtectedRoute requireAgent><AgentDashboard tab="properties" /></ProtectedRoute>} />
-                      <Route path="/dashboard/agent/messages" element={<ProtectedRoute requireAgent><Messages type="agent" /></ProtectedRoute>} />
-                      
-                      {/* Fallbacks */}
-                      <Route path="/tenant/*" element={<ProtectedRoute requireTenant><TenantDashboard /></ProtectedRoute>} />
-                      <Route path="/landlord/*" element={<ProtectedRoute requireLandlord><LandlordDashboard /></ProtectedRoute>} />
-                    </Routes>
-                  </Suspense>
-                </ErrorBoundary>
-              </main>
-              <Footer />
-              <CookieConsent />
-            </div>
+            <MainLayout />
           </SavedPropertiesProvider>
         </AuthProvider>
       </NotificationProvider>
