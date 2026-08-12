@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-// NEW / SAFE WAY:
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_ACTUAL_PROJECT_ID.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ACTUAL_ANON_KEY_HERE';
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
