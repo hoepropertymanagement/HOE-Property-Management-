@@ -20,6 +20,13 @@ export default function Navbar() {
   const allowedAgentEmails = ['ann.imaginator@gmail.com', 'twilightani113@gmail.com'];
   const isAgent = profile?.role === 'agent' || (user?.email && allowedAgentEmails.includes(user.email));
 
+  // Direct paths matching your actual App routes: /tenant-dashboard, /landlord-dashboard
+  const dashboardPath = isAgent 
+    ? "/dashboard/agent" 
+    : profile?.role === 'landlord' 
+      ? "/landlord-dashboard" 
+      : "/tenant-dashboard";
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -40,7 +47,7 @@ export default function Navbar() {
   const isAuthActive = location.pathname === '/' || location.pathname === '/auth' || location.pathname === '/login';
   const isRentActive = location.pathname === '/search' && mode === 'Rent';
   const isContactActive = location.pathname === '/contact';
-  const isDashboardActive = location.pathname.startsWith('/landlord') || location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/tenant');
+  const isDashboardActive = location.pathname.includes('dashboard') || location.pathname.includes('tenant') || location.pathname.includes('landlord');
 
   const getLinkClass = (isActive: boolean) => `
     transition-all duration-300 pb-1 md:text-[10px] lg:text-xs uppercase tracking-[0.2em]
@@ -61,7 +68,6 @@ export default function Navbar() {
           "flex justify-between items-center h-full"
         )}>
           <div className="flex items-center gap-6">
-            {/* Logo directs to /home if logged in, otherwise /auth */}
             <Link to={user ? "/home" : "/auth"} className={cn(
               "flex items-center gap-3 group transition-all duration-300",
               isMinimized ? "scale-90" : "scale-100"
@@ -83,19 +89,16 @@ export default function Navbar() {
             <div className={cn(
               "hidden md:flex items-center space-x-8 uppercase tracking-widest md:text-[9px] lg:text-[11px]"
             )}>
-              {/* Show SIGN IN / SIGN UP only when user is NOT logged in */}
               {!user && (
                 <Link to="/auth" className={getLinkClass(isAuthActive)}>Sign In / Sign Up</Link>
               )}
 
-              {/* SEARCH link ALWAYS points to /home (Hero Property Filter page) */}
               <Link to="/home" className={getLinkClass(isHomeActive)}>Search</Link>
-              
               <Link to="/search?mode=Rent" className={getLinkClass(isRentActive)}>Lettings/Buy</Link>
               <Link to="/contact" className={getLinkClass(isContactActive)}>Contact</Link>
               
-              {/* Dashboard link */}
-              <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} className={getLinkClass(isDashboardActive)}>Dashboard</Link>
+              {/* Direct link to /tenant-dashboard or /landlord-dashboard */}
+              <Link to={dashboardPath} className={getLinkClass(isDashboardActive)}>Dashboard</Link>
             </div>
           </div>
 
@@ -143,7 +146,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Menu */}
         {isOpen && (
           <div className="md:hidden bg-secondary border-b border-primary/10 px-4 pt-2 pb-6 space-y-3">
             {!user && (
@@ -152,7 +155,7 @@ export default function Navbar() {
             <Link to="/home" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Search</Link>
             <Link to="/search?mode=Rent" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Lettings/Buy</Link>
             <Link to="/contact" onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Contact</Link>
-            <Link to={isAgent ? "/dashboard/agent" : "/dashboard"} onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Dashboard</Link>
+            <Link to={dashboardPath} onClick={() => setIsOpen(false)} className="block py-2 text-xs uppercase font-bold text-primary">Dashboard</Link>
           </div>
         )}
       </nav>

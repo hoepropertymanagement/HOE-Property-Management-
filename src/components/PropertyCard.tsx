@@ -129,7 +129,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[#F5F5F0] touch-pan-y group/carousel">
-        <Link to={`/property/${property.id}`} target="_blank" className="absolute inset-0 z-10">
+        <Link to={`/property/${property.id}`}  className="absolute inset-0 z-10">
           <AnimatePresence mode="popLayout" initial={false}>
             {displayImages.length > 0 ? (
               <motion.div
@@ -275,7 +275,7 @@ export default function PropertyCard({ property, onHover }: PropertyCardProps) {
         </div>
       </div>
 
-      <Link to={`/property/${property.id}`} target="_blank" className="p-5 flex-grow flex flex-col">
+      <Link to={`/property/${property.id}`} className="p-5 flex-grow flex flex-col">
         <div className="mb-2">
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-accent font-bold text-xl">{property.price}</h3>

@@ -1,166 +1,168 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
+
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'tenant' | 'landlord' | 'agent'>('tenant');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const authContext = useAuth() as any;
-  const navigate = useNavigate();
+  // AUTO-REDIRECT LOGIC: Navigates based on selected role / profile
+  useEffect(() => {
+    if (!loading && user) {
+      const activeRole = profile?.role || user?.user_metadata?.role || role || 'tenant';
 
-  const handleSuccessRedirect = (userRole: string) => {
-    if (userRole === 'agent') {
-      navigate('/agent-dashboard', { replace: true });
-    } else if (userRole === 'landlord') {
-      navigate('/landlord-dashboard', { replace: true });
-    } else {
-      navigate('/tenant-dashboard', { replace: true });
+      if (activeRole === 'landlord') {
+        navigate('/dashboard/landlord', { replace: true });
+      } else if (activeRole === 'agent') {
+        navigate('/dashboard/agent', { replace: true });
+      } else {
+        navigate('/dashboard/tenant', { replace: true });
+      }
     }
-  };
+  }, [user, profile, loading, navigate, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setAuthError(null);
+    setIsSubmitting(true);
 
     try {
-      const loginFn = 
-        authContext?.signInWithPassword || 
-        authContext?.signIn || 
-        authContext?.login;
+      if (isSignUp) {
+        // Sign Up Flow
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { role }
+          }
+        });
 
-      const signupFn = 
-        authContext?.signUp || 
-        authContext?.signup;
+        if (error) throw error;
 
-      if (isLogin) {
-        if (typeof loginFn === 'function') {
-          await loginFn(email, password);
-        } else if (authContext?.supabase?.auth) {
-          const { error: sbError } = await authContext.supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (sbError) throw sbError;
+        if (data.user) {
+          const targetRole = data.user.user_metadata?.role || role;
+          navigate(`/dashboard/${targetRole}`, { replace: true });
         }
       } else {
-        if (typeof signupFn === 'function') {
-          await signupFn(email, password, role);
-        } else if (authContext?.supabase?.auth) {
-          const { error: sbError } = await authContext.supabase.auth.signUp({
-            email,
-            password,
-            options: { data: { role } },
-          });
-          if (sbError) throw sbError;
+        // Sign In Flow
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          const targetRole = role || data.user.user_metadata?.role || 'tenant';
+          navigate(`/dashboard/${targetRole}`, { replace: true });
         }
       }
-
-      handleSuccessRedirect(role);
     } catch (err: any) {
-      console.warn('Auth issue encountered, redirecting to dashboard:', err);
-      handleSuccessRedirect(role);
+      console.error("Authentication error:", err.message);
+      setAuthError(err.message || 'Failed to authenticate');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div 
-      className="min-h-screen relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+      className="min-h-screen relative flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=2560&q=100')`
+        backgroundImage: `url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop')`
       }}
     >
-      {/* Clearer, lighter overlay with no blur to keep the background sharp */}
-      <div className="absolute inset-0 bg-black/35"></div>
+      {/* Light subtle overlay to keep the background image sharp & bright */}
+      <div className="absolute inset-0 bg-black/15" />
 
-      {/* Auth Card Container */}
-      <div className="relative z-10 max-w-md w-full space-y-8 bg-white/95 backdrop-blur-md p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/20">
-        <div>
-          <h2 className="mt-2 text-center text-3xl font-serif font-bold text-gray-900 tracking-tight">
-            {isLogin ? 'Sign in to your account' : 'Create a new account'}
-          </h2>
-          <p className="mt-2 text-center text-xs font-semibold tracking-widest text-amber-700 uppercase">
-            House of Eden Properties
+      {/* High-contrast Auth Card */}
+      <div className="relative z-10 max-w-md w-full bg-white rounded-3xl p-8 shadow-2xl space-y-6 text-slate-900 border border-slate-100">
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            {isSignUp ? 'Create an account' : 'Sign in to your account'}
+          </h1>
+          <p className="text-[10px] font-extrabold tracking-widest text-amber-600 uppercase">
+            HOUSE OF EDEN PROPERTIES
           </p>
         </div>
-        
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
-            {error}
+
+        {authError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 text-center font-medium">
+            {authError}
           </div>
         )}
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                Account Type
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as any)}
-                className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
-              >
-                <option value="tenant">Tenant</option>
-                <option value="landlord">Landlord</option>
-                <option value="agent">Agent</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                Email Address
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="name@domain.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3.5 px-4 rounded-lg text-sm font-bold uppercase tracking-widest text-white bg-slate-900 hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all duration-200 shadow-lg cursor-pointer"
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Account Type
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as any)}
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-xs font-semibold outline-none focus:border-amber-500 focus:bg-white transition-colors"
             >
-              {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
-            </button>
+              <option value="tenant">Tenant</option>
+              <option value="landlord">Landlord</option>
+              <option value="agent">Agent</option>
+            </select>
           </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-xs outline-none focus:border-amber-500 focus:bg-white transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 text-xs outline-none focus:border-amber-500 focus:bg-white transition-colors"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-slate-900 text-white font-black rounded-xl text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors disabled:opacity-50 mt-2 shadow-lg shadow-slate-900/20"
+          >
+            {isSubmitting ? 'PROCESSING...' : isSignUp ? 'SIGN UP' : 'SIGN IN'}
+          </button>
         </form>
 
-        <div className="text-center mt-6 pt-4 border-t border-gray-200/60">
+        <div className="text-center pt-2">
           <button
             type="button"
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-xs font-semibold text-slate-700 hover:text-amber-600 transition-colors cursor-pointer uppercase tracking-wider"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setAuthError(null);
+            }}
+            className="text-[11px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider transition-colors"
           >
-            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+            {isSignUp ? 'ALREADY HAVE AN ACCOUNT? SIGN IN' : "DON'T HAVE AN ACCOUNT? SIGN UP"}
           </button>
         </div>
       </div>

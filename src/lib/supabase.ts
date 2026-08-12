@@ -1,12 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://vlmqmmkenhzkcyqclswy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXFtbWtlbmh6a2N5cWNsc3d5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDc3NDEsImV4cCI6MjA5NDc4Mzc0MX0.NT2ddVIg5GhTkg0AO6IqdT52e-LTSPBeqgS02SruQt4';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
-  }
+    detectSessionInUrl: true,
+  },
+  global: {
+    // Abort queries after 8 seconds so the app never hangs indefinitely
+    fetch: (url, options) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 8000);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(id));
+    },
+  },
 });

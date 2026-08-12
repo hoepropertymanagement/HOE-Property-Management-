@@ -165,6 +165,7 @@ function MainLayout() {
               <Route path="/search" element={<SearchResults />} />
               <Route path="/property/:id" element={<PropertyDetail />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/login" element={<AuthPage />} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/about" element={<AboutUs />} />

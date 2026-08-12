@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from '../lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { auth, db, googleProvider, onAuthStateChanged, signInWithPopup, signOut } from '../lib/firebase';
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { FirebaseUser } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
 import { supabase } from '../lib/supabase';
@@ -11,7 +11,7 @@ export type UnifiedUser = FirebaseUser | (SupabaseUser & { uid: string; displayN
 export const ROLES = ['tenant', 'landlord', 'both', 'agent'] as const;
 export type EcosystemRole = (typeof ROLES)[number];
 
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   name: string;
   email: string;
@@ -45,135 +45,240 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any>({
-    uid: 'mock-user-123',
-    email: 'agent@test.com',
-  });
-  const [profile, setProfile] = useState<any>({
-    id: 'mock-user-123',
-    email: 'agent@test.com',
-    role: 'agent', // You can change this to 'admin' or 'client' whenever you want to test different views
-  });
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<UnifiedUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let unsubscribeProfile: (() => void) | null = null;
-    let isRedirectHandling = true;
-
-    // Handle any pending redirect results
-    import('../lib/firebase').then(({ getRedirectResult, auth }) => {
-      getRedirectResult(auth).catch((error) => {
-        console.warn("Redirect sign-in error or cancelled:", error);
-      }).finally(() => {
-        isRedirectHandling = false;
+  // Firestore Profile Listener Helper
+  const subscribeToFirestoreProfile = useCallback((uid: string, defaultUser: any) => {
+    const docRef = doc(db, 'users', uid);
+    
+    // Fetch once to ensure document exists
+    getDoc(docRef).then(async (docSnap) => {
+      if (!docSnap.exists()) {
+        const newProfile: UserProfile = {
+          uid,
+          name: defaultUser.displayName || defaultUser.email?.split('@')[0] || 'User',
+          email: defaultUser.email || '',
+          photoURL: defaultUser.photoURL || '',
+          bio: '',
+          contactNumber: '',
+          isPublicContact: false,
+          showPhoneNumber: false,
+          showEmail: false,
+          role: 'tenant',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        await setDoc(docRef, newProfile).catch(err => 
+          handleFirestoreError(err, OperationType.CREATE, `users/${uid}`)
+        );
+        setProfile(newProfile);
+      }
+    }).catch(err => {
+      console.warn("Firestore getDoc error:", err);
+      // Fallback profile if Firestore read fails
+      setProfile({
+        uid,
+        name: defaultUser.displayName || defaultUser.email?.split('@')[0] || 'User',
+        email: defaultUser.email || '',
+        photoURL: defaultUser.photoURL || '',
+        bio: '',
+        contactNumber: '',
+        isPublicContact: false,
+        showPhoneNumber: false,
+        showEmail: false,
+        role: 'tenant',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     });
 
-    const unsubscribeFirebase = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        handleUserDoc(firebaseUser.uid, firebaseUser.displayName, firebaseUser.email, firebaseUser.photoURL);
-      } else {
-        // If Firebase logs out, check Supabase session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session) {
-            setUser(null);
-            setProfile(null);
-            if (unsubscribeProfile) unsubscribeProfile();
-            setLoading(false);
-          }
+    // Realtime Listener
+    return onSnapshot(docRef, 
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data() as UserProfile;
+          setProfile({
+            ...data,
+            role: data.role || 'tenant'
+          });
+        } else {
+          setProfile({
+            uid,
+            name: defaultUser.displayName || defaultUser.email?.split('@')[0] || 'User',
+            email: defaultUser.email || '',
+            photoURL: defaultUser.photoURL || '',
+            bio: '',
+            contactNumber: '',
+            isPublicContact: false,
+            showPhoneNumber: false,
+            showEmail: false,
+            role: 'tenant',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+        setLoading(false);
+      }, 
+      (error) => {
+        console.warn("Firestore onSnapshot error:", error);
+        setProfile({
+          uid,
+          name: defaultUser.displayName || defaultUser.email?.split('@')[0] || 'User',
+          email: defaultUser.email || '',
+          photoURL: defaultUser.photoURL || '',
+          bio: '',
+          contactNumber: '',
+          isPublicContact: false,
+          showPhoneNumber: false,
+          showEmail: false,
+          role: 'tenant',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
+        setLoading(false);
       }
+    );
+  }, []);
+
+  useEffect(() => {
+    let unsubscribeFirestore: (() => void) | null = null;
+    let isSubscribed = true;
+
+    // PERFORMANCE FIX: Safety timeout so the app unfreezes after 3s if network calls hang
+    const fallbackTimer = setTimeout(() => {
+      if (isSubscribed) {
+        setLoading(false);
+      }
+    }, 3000);
+
+    const initializeAuth = async () => {
+      try {
+        // 1. Check Supabase session first
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user && isSubscribed) {
+          const unifiedUser: UnifiedUser = {
+            ...session.user,
+            uid: session.user.id,
+            displayName: session.user.user_metadata?.displayName || session.user.user_metadata?.name || 'New User',
+            photoURL: session.user.user_metadata?.photoURL || null,
+            emailVerified: !!session.user.email_confirmed_at
+          };
+
+          const metadata = session.user.user_metadata || {};
+          const pseudoProfile: UserProfile = {
+            uid: session.user.id,
+            name: metadata.displayName || metadata.name || session.user.email?.split('@')[0] || 'User',
+            email: session.user.email || '',
+            photoURL: metadata.photoURL || '',
+            bio: metadata.bio || '',
+            contactNumber: metadata.contactNumber || '',
+            isPublicContact: !!metadata.isPublicContact,
+            showPhoneNumber: !!metadata.showPhoneNumber,
+            showEmail: !!metadata.showEmail,
+            role: (metadata.role || 'tenant') as EcosystemRole,
+            isPhoneVerified: !!metadata.isPhoneVerified,
+            createdAt: session.user.created_at,
+            updatedAt: session.user.updated_at,
+            address: metadata.address || '',
+            searchRadius: metadata.searchRadius || '15',
+            emailNotifications: metadata.emailNotifications ?? true,
+            smsNotifications: metadata.smsNotifications ?? false,
+            pushNotifications: metadata.pushNotifications ?? true,
+            managedBy: metadata.managedBy || metadata.managed_by || ''
+          };
+
+          setUser(unifiedUser);
+          setProfile(pseudoProfile);
+          setLoading(false);
+          clearTimeout(fallbackTimer);
+          return;
+        }
+      } catch (err) {
+        console.warn("Error checking Supabase session:", err);
+      }
+
+      // 2. Fallback to Firebase Auth Listener
+      const unsubscribeFirebase = onAuthStateChanged(auth, (firebaseUser) => {
+        if (!isSubscribed) return;
+
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          if (unsubscribeFirestore) unsubscribeFirestore();
+          unsubscribeFirestore = subscribeToFirestoreProfile(firebaseUser.uid, firebaseUser);
+        } else {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+        clearTimeout(fallbackTimer);
+      });
+
+      return () => {
+        unsubscribeFirebase();
+      };
+    };
+
+    let cleanupFirebase: (() => void) | undefined;
+    initializeAuth().then((cleanup) => {
+      if (cleanup) cleanupFirebase = cleanup;
     });
 
+    // Supabase Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isSubscribed) return;
+
       if (session?.user) {
         const unifiedUser: UnifiedUser = {
           ...session.user,
           uid: session.user.id,
-          displayName: session.user.user_metadata?.displayName || session.user.user_metadata?.name || 'New User',
+          displayName: session.user.user_metadata?.displayName || session.user.user_metadata?.name || 'User',
           photoURL: session.user.user_metadata?.photoURL || null,
           emailVerified: !!session.user.email_confirmed_at
         };
-        setUser(unifiedUser);
-        
-        // Use Supabase profile metadata instead of Firestore lookup
         const metadata = session.user.user_metadata || {};
         const pseudoProfile: UserProfile = {
-           uid: session.user.id,
-           name: metadata.displayName || metadata.name || 'New User',
-           email: session.user.email || '',
-           photoURL: metadata.photoURL || '',
-           bio: metadata.bio || '',
-           contactNumber: metadata.contactNumber || '',
-           isPublicContact: !!metadata.isPublicContact,
-           showPhoneNumber: !!metadata.showPhoneNumber,
-           showEmail: !!metadata.showEmail,
-           role: (metadata.role || 'tenant') as any,
-           isPhoneVerified: !!metadata.isPhoneVerified,
-           createdAt: session.user.created_at,
-           updatedAt: session.user.updated_at,
-           address: metadata.address || '',
-           searchRadius: metadata.searchRadius || '15',
-           emailNotifications: metadata.emailNotifications ?? true,
-           smsNotifications: metadata.smsNotifications ?? false,
-           pushNotifications: metadata.pushNotifications ?? true,
-           managedBy: metadata.managedBy || metadata.managed_by || ''
+          uid: session.user.id,
+          name: metadata.displayName || metadata.name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          photoURL: metadata.photoURL || '',
+          bio: metadata.bio || '',
+          contactNumber: metadata.contactNumber || '',
+          isPublicContact: !!metadata.isPublicContact,
+          showPhoneNumber: !!metadata.showPhoneNumber,
+          showEmail: !!metadata.showEmail,
+          role: (metadata.role || 'tenant') as EcosystemRole,
+          isPhoneVerified: !!metadata.isPhoneVerified,
+          createdAt: session.user.created_at,
+          updatedAt: session.user.updated_at,
+          address: metadata.address || '',
+          searchRadius: metadata.searchRadius || '15',
+          emailNotifications: metadata.emailNotifications ?? true,
+          smsNotifications: metadata.smsNotifications ?? false,
+          pushNotifications: metadata.pushNotifications ?? true,
+          managedBy: metadata.managedBy || metadata.managed_by || ''
         };
+        setUser(unifiedUser);
         setProfile(pseudoProfile);
         setLoading(false);
       } else if (!auth.currentUser) {
         setUser(null);
         setProfile(null);
-        if (unsubscribeProfile) unsubscribeProfile();
         setLoading(false);
       }
+      clearTimeout(fallbackTimer);
     });
 
-    const handleUserDoc = async (uid: string, displayName: string | null | undefined, email: string | null | undefined, photoURL: string | null | undefined) => {
-        const docRef = doc(db, 'users', uid);
-        try {
-          const docSnap = await getDoc(docRef);
-          if (!docSnap.exists()) {
-            const newProfile: UserProfile = {
-              uid,
-              name: displayName || 'New User',
-              email: email || '',
-              photoURL: photoURL || '',
-              bio: '',
-              contactNumber: '',
-              isPublicContact: false,
-              showPhoneNumber: false,
-              showEmail: false,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            };
-            await setDoc(docRef, newProfile);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
-        }
-
-        if (unsubscribeProfile) unsubscribeProfile();
-        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${uid}`);
-          setLoading(false);
-        });
-    };
-
     return () => {
-      unsubscribeFirebase();
+      isSubscribed = false;
+      clearTimeout(fallbackTimer);
+      if (cleanupFirebase) cleanupFirebase();
       subscription.unsubscribe();
-      if (unsubscribeProfile) unsubscribeProfile();
+      if (unsubscribeFirestore) unsubscribeFirestore();
     };
-  }, []);
+  }, [subscribeToFirestoreProfile]);
 
   const loginWithGoogle = useCallback(async () => {
     try {
@@ -185,36 +290,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(async () => {
-    await Promise.all([
-      signOut(auth),
-      supabase.auth.signOut()
-    ]);
+    try {
+      await Promise.all([
+        signOut(auth).catch(() => {}),
+        supabase.auth.signOut().catch(() => {})
+      ]);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+    }
   }, []);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     if (!user) return;
 
-    // Supabase User handling
     if ((user as any).app_metadata) {
-      const { supabase } = await import('../lib/supabase');
       const { error } = await supabase.auth.updateUser({
         data: updates
       });
       if (error) throw error;
       setProfile(prev => prev ? { ...prev, ...updates } as UserProfile : null);
-      
-      // We also update Firestore so other users/agents can still query the public profile if needed
-      // (This serves as a backup registry)
+      return;
     }
 
     const docRef = doc(db, 'users', user.uid);
-    
     try {
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {
         const newProfile: UserProfile = {
           uid: user.uid,
-          name: updates.name || user.displayName || 'New User',
+          name: updates.name || user.displayName || 'User',
           email: updates.email || user.email || '',
           photoURL: updates.photoURL || user.photoURL || '',
           bio: '',
@@ -222,6 +328,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isPublicContact: false,
           showPhoneNumber: false,
           showEmail: false,
+          role: updates.role || 'tenant',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           ...updates
@@ -230,24 +337,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         await setDoc(docRef, { ...updates, updatedAt: serverTimestamp() }, { merge: true });
       }
-      
-      // Update local profile immediately for Firebase users
-      if (!(user as any).app_metadata) {
-         setProfile(prev => prev ? { ...prev, ...updates } as UserProfile : null);
-      }
+      setProfile(prev => prev ? { ...prev, ...updates } as UserProfile : null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
       throw error;
     }
   }, [user]);
 
-  const contextValue = React.useMemo(() => ({
+  const contextValue = useMemo(() => ({
     user, profile, loading, loginWithGoogle, logout, updateProfile
   }), [user, profile, loading, loginWithGoogle, logout, updateProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
