@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase'; // Adjust path if your supabase client is located elsewhere
+import { supabase } from '../lib/supabase'; // Make sure this path points to your supabase client file
 
 export default function AddProperty() {
   const [title, setTitle] = useState('');
@@ -30,38 +30,36 @@ export default function AddProperty() {
     try {
       let publicImageUrl = '';
 
-      // 1. Upload image to Supabase Storage (if selected)
+      // 1. Upload image to 'property-images' bucket
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-        const filePath = `property-images/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('properties') // Make sure a bucket named 'properties' exists in Supabase Storage
-          .upload(filePath, selectedFile);
+          .from('property-images')
+          .upload(fileName, selectedFile);
 
         if (uploadError) {
           throw new Error(`Image Upload Error: ${uploadError.message}`);
         }
 
-        // Get public URL of uploaded image
+        // Get public URL
         const { data: urlData } = supabase.storage
-          .from('properties')
-          .getPublicUrl(filePath);
+          .from('property-images')
+          .getPublicUrl(fileName);
 
         publicImageUrl = urlData.publicUrl;
       }
 
-      // 2. Insert record into Supabase Database
+      // 2. Insert into 'properties' table
       const { error: insertError } = await supabase
-        .from('properties') // Make sure 'properties' table exists in Supabase
+        .from('properties')
         .insert([
           {
             title,
             price: Number(price),
             location,
-            image_url: publicImageUrl || imagePreview,
-            created_at: new Date().toISOString(),
+            images: publicImageUrl ? [publicImageUrl] : [],
           },
         ]);
 
@@ -71,7 +69,7 @@ export default function AddProperty() {
 
       setSuccessMessage('Property listing published successfully to the database!');
       
-      // Reset form fields
+      // Reset form
       setTitle('');
       setPrice('');
       setLocation('');
@@ -90,14 +88,12 @@ export default function AddProperty() {
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
         <h1 className="text-3xl font-serif font-bold text-gray-900 mb-6">Add New Property Listing</h1>
 
-        {/* Success Alert */}
         {successMessage && (
           <div className="bg-green-50 text-green-800 p-4 rounded-xl mb-6 border border-green-200">
             {successMessage}
           </div>
         )}
 
-        {/* Error Alert */}
         {errorMessage && (
           <div className="bg-red-50 text-red-800 p-4 rounded-xl mb-6 border border-red-200">
             {errorMessage}
@@ -142,7 +138,6 @@ export default function AddProperty() {
             </div>
           </div>
 
-          {/* Image Upload Area */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Upload Property Photo</label>
             <input
@@ -153,7 +148,6 @@ export default function AddProperty() {
             />
           </div>
 
-          {/* Image Preview */}
           {imagePreview && (
             <div className="mt-4">
               <p className="text-sm text-gray-500 mb-2">Image Preview:</p>
