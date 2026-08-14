@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import React, { Suspense, useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import Home from './pages/Home';
@@ -36,7 +36,7 @@ import ScrollToTop from './components/ScrollToTop';
 import SavedPropertiesPage from './pages/SavedPropertiesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { SavedPropertiesProvider } from './context/SavedPropertiesContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { supabase } from './lib/supabase';
 
@@ -47,6 +47,24 @@ function AuthDebug() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+  return null;
+}
+
+// Catches OAuth callbacks (e.g. Google Sign-In) and immediately redirects to the target dashboard
+function OAuthRedirectHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const role = session.user?.user_metadata?.role || 'tenant';
+        navigate(`/dashboard/${role}`, { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   return null;
 }
 
@@ -148,7 +166,12 @@ function ImpersonationBanner() {
 
 function MainLayout() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/' || location.pathname === '/auth';
+  const { user, profile, loading } = useAuth();
+  const isAuthPage = location.pathname === '/' || location.pathname === '/auth' || location.pathname === '/login';
+
+  // Determine role destination
+  const targetRole = profile?.role || user?.user_metadata?.role || 'tenant';
+  const dashboardPath = `/dashboard/${targetRole}`;
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -159,13 +182,24 @@ function MainLayout() {
         <ErrorBoundary>
           <Suspense fallback={<div className="min-h-screen bg-secondary flex items-center justify-center">Loading...</div>}>
             <Routes>
-              <Route path="/" element={<AuthPage />} />
+              {/* Redirect authenticated users away from Auth routes */}
+              <Route 
+                path="/" 
+                element={user && !loading ? <Navigate to={dashboardPath} replace /> : <AuthPage />} 
+              />
+              <Route 
+                path="/auth" 
+                element={user && !loading ? <Navigate to={dashboardPath} replace /> : <AuthPage />} 
+              />
+              <Route 
+                path="/login" 
+                element={user && !loading ? <Navigate to={dashboardPath} replace /> : <AuthPage />} 
+              />
+
               <Route path="/home" element={<Home />} />
               <Route path="/add-property" element={<AddProperty />} />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/property/:id" element={<PropertyDetail />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/login" element={<AuthPage />} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/about" element={<AboutUs />} />
@@ -177,7 +211,7 @@ function MainLayout() {
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/fees" element={<Fees />} />
               
-              {/* Dashboard Routes */}
+              {/* Dashboard Gateway */}
               <Route path="/dashboard" element={<ProtectedRoute><DashboardGateway /></ProtectedRoute>} />
               
               {/* Landlord Routes */}
@@ -217,6 +251,7 @@ export default function App() {
   return (
     <Router>
       <AuthDebug />
+      <OAuthRedirectHandler />
       <ScrollToTop />
       <NotificationProvider>
         <RedirectListener />
