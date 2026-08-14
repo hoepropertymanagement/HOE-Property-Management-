@@ -51,14 +51,23 @@ export default function AddProperty() {
         publicImageUrl = urlData.publicUrl;
       }
 
-      // 2. Insert into 'properties' table
+      // 2. Fetch logged-in user (if available) to satisfy landlord_id requirements
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || null;
+
+      const numericPrice = Number(price);
+
+      // 3. Insert into 'properties' table with fallback column mappings
       const { error: insertError } = await supabase
         .from('properties')
         .insert([
           {
             title,
-            price: Number(price),
+            price: numericPrice,
+            monthly_rent: numericPrice,
             location,
+            description: title, // Fallback description string
+            landlord_id: userId,
             images: publicImageUrl ? [publicImageUrl] : [],
           },
         ]);
