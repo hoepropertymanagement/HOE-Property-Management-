@@ -1,23 +1,88 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase'; // Adjust path if your supabase client is located elsewhere
 
 export default function AddProperty() {
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
   const [location, setLocation] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const imageUrl = URL.createObjectURL(file);
       setImagePreview(imageUrl);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      let publicImageUrl = '';
+
+      // 1. Upload image to Supabase Storage (if selected)
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+        const filePath = `property-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('properties') // Make sure a bucket named 'properties' exists in Supabase Storage
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          throw new Error(`Image Upload Error: ${uploadError.message}`);
+        }
+
+        // Get public URL of uploaded image
+        const { data: urlData } = supabase.storage
+          .from('properties')
+          .getPublicUrl(filePath);
+
+        publicImageUrl = urlData.publicUrl;
+      }
+
+      // 2. Insert record into Supabase Database
+      const { error: insertError } = await supabase
+        .from('properties') // Make sure 'properties' table exists in Supabase
+        .insert([
+          {
+            title,
+            price: Number(price),
+            location,
+            image_url: publicImageUrl || imagePreview,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+      if (insertError) {
+        throw new Error(`Database Error: ${insertError.message}`);
+      }
+
+      setSuccessMessage('Property listing published successfully to the database!');
+      
+      // Reset form fields
+      setTitle('');
+      setPrice('');
+      setLocation('');
+      setSelectedFile(null);
+      setImagePreview(null);
+    } catch (err: any) {
+      console.error('Publishing failed:', err);
+      setErrorMessage(err.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,11 +90,19 @@ export default function AddProperty() {
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
         <h1 className="text-3xl font-serif font-bold text-gray-900 mb-6">Add New Property Listing</h1>
 
-        {submitted ? (
-          <div className="bg-green-50 text-green-800 p-4 rounded-xl mb-6">
-            Property listing created successfully! (Preview Mode)
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="bg-green-50 text-green-800 p-4 rounded-xl mb-6 border border-green-200">
+            {successMessage}
           </div>
-        ) : null}
+        )}
+
+        {/* Error Alert */}
+        {errorMessage && (
+          <div className="bg-red-50 text-red-800 p-4 rounded-xl mb-6 border border-red-200">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -94,9 +167,10 @@ export default function AddProperty() {
 
           <button
             type="submit"
-            className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition"
+            disabled={loading}
+            className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
           >
-            Publish Property
+            {loading ? 'Publishing...' : 'Publish Property'}
           </button>
         </form>
       </div>
