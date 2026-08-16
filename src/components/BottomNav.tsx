@@ -7,10 +7,12 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
-  type: 'tenant' | 'landlord' | 'agent';
+  type?: 'tenant' | 'landlord' | 'agent';
+  role?: 'tenant' | 'landlord' | 'agent';
 }
 
-export default function BottomNav({ type }: BottomNavProps) {
+export default function BottomNav({ type, role }: BottomNavProps) {
+  const resolvedType = type ?? role ?? 'tenant';
   const location = useLocation();
   const { profile } = useAuth();
 
@@ -34,9 +36,9 @@ export default function BottomNav({ type }: BottomNavProps) {
   ];
 
   let baseMenu = tenantMenu;
-  if (type === 'landlord') {
+  if (resolvedType === 'landlord') {
     baseMenu = landlordMenu;
-  } else if (type === 'agent') {
+  } else if (resolvedType === 'agent') {
     baseMenu = agentMenu;
   }
   
@@ -45,7 +47,7 @@ export default function BottomNav({ type }: BottomNavProps) {
     menu.push({
       icon: ArrowLeftRight,
       label: 'Switch Mode',
-      path: type === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'
+      path: resolvedType === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'
     });
   }
 

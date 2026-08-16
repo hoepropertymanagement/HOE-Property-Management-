@@ -170,7 +170,7 @@ function MainLayout() {
   const isAuthPage = location.pathname === '/' || location.pathname === '/auth' || location.pathname === '/login';
 
   // Determine role destination
-  const targetRole = profile?.role || user?.user_metadata?.role || 'tenant';
+  const targetRole = profile?.role || (user as any)?.user_metadata?.role || 'tenant';
   const dashboardPath = `/dashboard/${targetRole}`;
 
   return (

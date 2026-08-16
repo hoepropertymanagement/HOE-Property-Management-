@@ -18,7 +18,7 @@ export default function AuthPage() {
   useEffect(() => {
     const handleAuthRedirect = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
         const userRole = session.user.user_metadata?.role || profile?.role || role || 'tenant';
         navigate(`/dashboard/${userRole}`, { replace: true });
@@ -50,7 +50,6 @@ export default function AuthPage() {
           queryParams: {
             prompt: 'select_account',
           },
-          data: { role },
         },
       });
 
@@ -100,7 +99,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen relative flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage: `url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop')`

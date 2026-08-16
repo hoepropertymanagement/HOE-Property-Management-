@@ -1,7 +1,7 @@
 export interface Property {
   id: string;
   title: string;
-  price: string;
+  price: string | number;
   location: string;
   bedrooms: number;
   bathrooms: number;
@@ -17,7 +17,14 @@ export interface Property {
   isStudent?: boolean;
   isRetirement?: boolean;
   landlordId?: string;
+  locationSearch?: string;
   councilTaxBand?: string;
+  councilTax?: string;
+  council_tax?: string;
+  beds?: number;
+  baths?: number;
+  energyEfficiency?: string;
+  energy_efficiency?: string;
   epcEE?: string;
   epcEI?: string;
   hasParking?: boolean;

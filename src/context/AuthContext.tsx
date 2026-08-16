@@ -6,7 +6,7 @@ import { OperationType, handleFirestoreError } from '../lib/firebase-utils';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
-export type UnifiedUser = FirebaseUser | (SupabaseUser & { uid: string; displayName: string | null; photoURL: string | null; emailVerified: boolean });
+export type UnifiedUser = (FirebaseUser & { id?: string }) | (SupabaseUser & { uid: string; displayName: string | null; photoURL: string | null; emailVerified: boolean; id?: string });
 
 export const ROLES = ['tenant', 'landlord', 'both', 'agent'] as const;
 export type EcosystemRole = (typeof ROLES)[number];

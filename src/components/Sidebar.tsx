@@ -35,10 +35,13 @@ export function useSidebarCollapse() {
 }
 
 interface SidebarProps {
-  type: 'tenant' | 'landlord' | 'agent';
+  type?: 'tenant' | 'landlord' | 'agent';
+  role?: 'tenant' | 'landlord' | 'agent';
 }
 
-export default function Sidebar({ type }: SidebarProps) {
+export default function Sidebar({ type, role }: SidebarProps) {
+  const resolvedType = type ?? role ?? 'tenant';
+
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
       return localStorage.getItem('hoe_sidebar_collapsed') === 'true';
@@ -72,9 +75,9 @@ export default function Sidebar({ type }: SidebarProps) {
   ];
 
   let menu = tenantMenu;
-  if (type === 'landlord') {
+  if (resolvedType === 'landlord') {
     menu = landlordMenu;
-  } else if (type === 'agent') {
+  } else if (resolvedType === 'agent') {
     menu = agentMenu;
   }
 
@@ -111,8 +114,8 @@ export default function Sidebar({ type }: SidebarProps) {
           {profile?.role === 'both' && (
             <div className="mb-6 px-4">
               <Link
-                to={type === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'}
-                title={isCollapsed ? (type === 'tenant' ? 'Switch to Landlord Portal' : 'Switch to Tenant Portal') : ""}
+                to={resolvedType === 'tenant' ? '/dashboard/landlord' : '/dashboard/tenant'}
+                title={isCollapsed ? (resolvedType === 'tenant' ? 'Switch to Landlord Portal' : 'Switch to Tenant Portal') : ""}
                 className="flex items-center gap-4 py-3 bg-accent/10 border border-accent/30 rounded-2xl hover:bg-accent hover:border-accent hover:text-primary group transition-all duration-300 shadow-sm justify-center"
               >
                 <ArrowLeftRight className="w-5 h-5 text-accent group-hover:text-primary transition-colors flex-shrink-0" />
@@ -120,7 +123,7 @@ export default function Sidebar({ type }: SidebarProps) {
                   "whitespace-nowrap transition-all duration-300 text-xs font-bold uppercase tracking-widest text-accent group-hover:text-primary",
                   isCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
                 )}>
-                  {type === 'tenant' ? 'Switch to Landlord' : 'Switch to Tenant'}
+                  {resolvedType === 'tenant' ? 'Switch to Landlord' : 'Switch to Tenant'}
                 </span>
               </Link>
             </div>

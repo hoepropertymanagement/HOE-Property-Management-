@@ -74,9 +74,9 @@ export default function Valuation() {
   }, [user, landlordId]);
 
   // Helper/Robust parser for monthly rent values
-  const parseRent = (rentStr?: string) => {
-    if (!rentStr) return 0;
-    const clean = rentStr.replace(/[^0-9.]/g, '');
+  const parseRent = (value?: string | number) => {
+    if (value === undefined || value === null || value === '') return 0;
+    const clean = String(value).replace(/[^0-9.]/g, '');
     const val = parseFloat(clean);
     return isNaN(val) ? 0 : val;
   };

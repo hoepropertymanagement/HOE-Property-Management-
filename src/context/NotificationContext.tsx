@@ -2,14 +2,16 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
+type NotificationType = 'gold' | 'red' | 'info' | 'success' | 'error';
+
 interface Notification {
   text: string;
-  type: 'gold' | 'red';
+  type: NotificationType;
   id: number;
 }
 
 interface NotificationContextType {
-  showNotification: (text: string, type: 'gold' | 'red') => void;
+  showNotification: (text: string, type: NotificationType) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -17,7 +19,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const showNotification = useCallback((text: string, type: 'gold' | 'red') => {
+  const showNotification = useCallback((text: string, type: NotificationType) => {
     const id = Date.now() + Math.random();
     setNotifications(prev => [...prev, { text, type, id }]);
     setTimeout(() => {
@@ -38,7 +40,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               className={`
                 px-6 py-3 rounded-md font-medium uppercase tracking-wider text-white shadow-xl pointer-events-auto
-                ${notif.type === 'gold' ? 'bg-[#D4AF37]' : 'bg-[#ff4444]'}
+                ${notif.type === 'gold' ? 'bg-[#D4AF37]' : notif.type === 'success' ? 'bg-[#16a34a]' : notif.type === 'info' ? 'bg-[#2563eb]' : 'bg-[#ff4444]'}
               `}
             >
               {notif.text}
